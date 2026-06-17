@@ -135,10 +135,15 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
-  // Track last-changed variable for pulse animation
-  const [changedVar, setChangedVar] = useState<
-    "intensidadEmocional" | "apertura" | "confianzaEnLaAyuda" | null
-  >(null);
+  // Track which variables changed this turn (multiple can change simultaneously).
+  // Also track per-variable delta sign so the bar can show a directional color cue.
+  type MatrixVarKey = "intensidadEmocional" | "apertura" | "confianzaEnLaAyuda";
+  const [changedVars, setChangedVars] = useState<Set<MatrixVarKey>>(new Set());
+  const [deltaSign, setDeltaSign] = useState<Record<MatrixVarKey, "good" | "bad" | "none">>({
+    intensidadEmocional: "none",
+    apertura: "none",
+    confianzaEnLaAyuda: "none",
+  });
   const prevMatrixRef = useRef(estadoMatriz);
   useEffect(() => {
     const prev = prevMatrixRef.current;
@@ -146,16 +151,37 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
       prevMatrixRef.current = estadoMatriz;
       return;
     }
+    const changed = new Set<MatrixVarKey>();
+    const signs: Record<MatrixVarKey, "good" | "bad" | "none"> = {
+      intensidadEmocional: "none",
+      apertura: "none",
+      confianzaEnLaAyuda: "none",
+    };
     if (estadoMatriz.intensidadEmocional !== prev.intensidadEmocional) {
-      setChangedVar("intensidadEmocional");
-    } else if (estadoMatriz.apertura !== prev.apertura) {
-      setChangedVar("apertura");
-    } else if (estadoMatriz.confianzaEnLaAyuda !== prev.confianzaEnLaAyuda) {
-      setChangedVar("confianzaEnLaAyuda");
+      changed.add("intensidadEmocional");
+      // For intensity, DOWN is good (calming Martina)
+      signs.intensidadEmocional =
+        estadoMatriz.intensidadEmocional < prev.intensidadEmocional ? "good" : "bad";
+    }
+    if (estadoMatriz.apertura !== prev.apertura) {
+      changed.add("apertura");
+      signs.apertura = estadoMatriz.apertura > prev.apertura ? "good" : "bad";
+    }
+    if (estadoMatriz.confianzaEnLaAyuda !== prev.confianzaEnLaAyuda) {
+      changed.add("confianzaEnLaAyuda");
+      signs.confianzaEnLaAyuda = estadoMatriz.confianzaEnLaAyuda > prev.confianzaEnLaAyuda ? "good" : "bad";
+    }
+    if (changed.size > 0) {
+      setChangedVars(changed);
+      setDeltaSign(signs);
+      const t = setTimeout(() => {
+        setChangedVars(new Set());
+        setDeltaSign({ intensidadEmocional: "none", apertura: "none", confianzaEnLaAyuda: "none" });
+      }, 1200);
+      prevMatrixRef.current = estadoMatriz;
+      return () => clearTimeout(t);
     }
     prevMatrixRef.current = estadoMatriz;
-    const t = setTimeout(() => setChangedVar(null), 1200);
-    return () => clearTimeout(t);
   }, [estadoMatriz]);
 
   const handleWarning = useCallback((at: "5min" | "10min" | "15min") => {
@@ -297,7 +323,8 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
             </p>
             <EmotionalMatrix
               estado={estadoMatriz}
-              changedVar={changedVar}
+              changedVars={changedVars}
+              deltaSign={deltaSign}
             />
           </aside>
         )}

@@ -1,19 +1,23 @@
 import { useState } from "react";
 import type { EstadoMatriz } from "@salvador/shared";
 
+type MatrixVarKey = "intensidadEmocional" | "apertura" | "confianzaEnLaAyuda";
+
 interface EmotionalMatrixProps {
   estado: EstadoMatriz;
-  // When true, show raw numeric deltas for debugging (admin surface)
   showDeltas?: boolean;
   deltas?: {
     intensidadEmocional: number;
     apertura: number;
     confianzaEnLaAyuda: number | "RESET_ZERO";
   } | null;
-  // The short explanation from the evaluator, shown in tooltips
   razonamientoBreve?: string;
-  // Which variable changed most recently (for pulse animation)
-  changedVar?: "intensidadEmocional" | "apertura" | "confianzaEnLaAyuda" | null;
+  // Set of variables that changed this turn (all pulse simultaneously)
+  changedVars?: ReadonlySet<MatrixVarKey>;
+  // Per-variable directional cue: "good" | "bad" | "none"
+  deltaSign?: Record<MatrixVarKey, "good" | "bad" | "none">;
+  // Legacy single-var prop kept for LabChat compatibility
+  changedVar?: MatrixVarKey | null;
 }
 
 interface BarProps {
@@ -21,11 +25,12 @@ interface BarProps {
   subLabel?: string;
   value: number;
   max?: number;
-  color: string; // Tailwind bg-* class for the filled portion
-  trackColor: string; // Tailwind bg-* class for the track
+  color: string;
+  trackColor: string;
   ariaLabel: string;
   tooltip: string;
   isPulsing: boolean;
+  direction: "good" | "bad" | "none";
   delta?: number | "RESET_ZERO" | null;
   showDelta: boolean;
 }
@@ -40,11 +45,21 @@ function MatrixBar({
   ariaLabel,
   tooltip,
   isPulsing,
+  direction,
   delta,
   showDelta,
 }: BarProps) {
   const [showTooltip, setShowTooltip] = useState(false);
   const pct = Math.round((value / max) * 100);
+
+  // During pulse: override fill color with a directional cue.
+  // "good" → emerald flash; "bad" → rose flash; "none" → default color.
+  const fillColor =
+    isPulsing && direction === "good"
+      ? "bg-emerald-400"
+      : isPulsing && direction === "bad"
+      ? "bg-rose-400"
+      : color;
 
   return (
     <div className="space-y-1">
@@ -94,7 +109,7 @@ function MatrixBar({
           aria-label={ariaLabel}
         >
           <div
-            className={`h-full rounded-full ${color} transition-all duration-[400ms] ease-out ${
+            className={`h-full rounded-full ${fillColor} transition-all duration-[400ms] ease-out ${
               isPulsing ? "animate-matrix-pulse" : ""
             }`}
             style={{ width: `${pct}%` }}
@@ -114,15 +129,34 @@ function MatrixBar({
   );
 }
 
+const EMPTY_SET: ReadonlySet<MatrixVarKey> = new Set();
+const DEFAULT_SIGNS: Record<MatrixVarKey, "good" | "bad" | "none"> = {
+  intensidadEmocional: "none",
+  apertura: "none",
+  confianzaEnLaAyuda: "none",
+};
+
 export function EmotionalMatrix({
   estado,
   showDeltas = false,
   deltas = null,
   razonamientoBreve,
+  changedVars,
+  deltaSign,
   changedVar = null,
 }: EmotionalMatrixProps) {
-  const buildTooltip = (varName: string): string => {
-    if (changedVar !== varName || razonamientoBreve === undefined) return "";
+  // Support legacy changedVar prop (LabChat) by converting to a Set
+  const activeVars: ReadonlySet<MatrixVarKey> =
+    changedVars !== undefined
+      ? changedVars
+      : changedVar !== null
+      ? new Set([changedVar])
+      : EMPTY_SET;
+
+  const signs = deltaSign ?? DEFAULT_SIGNS;
+
+  const buildTooltip = (varName: MatrixVarKey): string => {
+    if (!activeVars.has(varName) || razonamientoBreve === undefined) return "";
     return razonamientoBreve;
   };
 
@@ -136,7 +170,8 @@ export function EmotionalMatrix({
         trackColor="bg-summer-peach/20"
         ariaLabel="Intensidad emocional de Martina"
         tooltip={buildTooltip("intensidadEmocional")}
-        isPulsing={changedVar === "intensidadEmocional"}
+        isPulsing={activeVars.has("intensidadEmocional")}
+        direction={signs.intensidadEmocional}
         delta={deltas?.intensidadEmocional ?? null}
         showDelta={showDeltas}
       />
@@ -147,7 +182,8 @@ export function EmotionalMatrix({
         trackColor="bg-summer-teal/20"
         ariaLabel="Apertura de Martina"
         tooltip={buildTooltip("apertura")}
-        isPulsing={changedVar === "apertura"}
+        isPulsing={activeVars.has("apertura")}
+        direction={signs.apertura}
         delta={deltas?.apertura ?? null}
         showDelta={showDeltas}
       />
@@ -158,7 +194,8 @@ export function EmotionalMatrix({
         trackColor="bg-summer-blue/20"
         ariaLabel="Confianza de Martina en la ayuda"
         tooltip={buildTooltip("confianzaEnLaAyuda")}
-        isPulsing={changedVar === "confianzaEnLaAyuda"}
+        isPulsing={activeVars.has("confianzaEnLaAyuda")}
+        direction={signs.confianzaEnLaAyuda}
         delta={deltas?.confianzaEnLaAyuda ?? null}
         showDelta={showDeltas}
       />
