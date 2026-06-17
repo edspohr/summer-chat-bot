@@ -22,7 +22,7 @@ function shortLabel(tagId: string): string {
       const word = part.charAt(0) + part.slice(1).toLowerCase();
       const MAP: Record<string, string> = {
         Senales: "Señales",
-        Juicio: "Sin juicio",
+        Juicio: "No-juicio",
         Validacion: "Validación",
         Pregunta: "Pregunta",
         Presencia: "Presencia",
