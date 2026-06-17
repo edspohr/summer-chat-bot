@@ -8,32 +8,19 @@ interface TagProgressProps {
   items: TagProgressItem[];
 }
 
-// Derives a short human-readable hint from the tagId convention:
-// "T_03_ACOGE_VALIDACION_S03" → "Validación"
+const TAG_LABELS: Record<string, string> = {
+  T_01_OBSERVA_SENALES_S03:        "Señales",
+  T_02_OBSERVA_NO_JUICIO_S03:      "No-juicio",
+  T_03_ACOGE_VALIDACION_S03:       "Validación",
+  T_04_ACOGE_PREGUNTA_DIRECTA_S03: "Pregunta",
+  T_05_SILENCIO_PRESENCIA_S03:     "Presencia",
+  T_06_ILUMINA_RECURSOS_S03:       "Recursos",
+  T_07_SOSTEN_RED_S03:             "Red",
+  T_08_SOSTEN_REDES_OFICIALES_S03: "Derivación",
+};
+
 function shortLabel(tagId: string): string {
-  const PHASE_WORDS = new Set(["OBSERVA", "ACOGE", "SILENCIO", "ILUMINA", "SOSTEN"]);
-  const parts = tagId.split("_");
-  // Find the first part after the phase word that isn't a scenario suffix (Sxx)
-  let found = false;
-  for (const part of parts) {
-    if (PHASE_WORDS.has(part)) { found = true; continue; }
-    if (found && !/^S\d+$/.test(part)) {
-      // Title-case and replace common abbreviations
-      const word = part.charAt(0) + part.slice(1).toLowerCase();
-      const MAP: Record<string, string> = {
-        Senales: "Señales",
-        Juicio: "No-juicio",
-        Validacion: "Validación",
-        Pregunta: "Pregunta",
-        Presencia: "Presencia",
-        Recursos: "Recursos",
-        Red: "Red",
-        Redes: "Derivación",
-      };
-      return MAP[word] ?? word;
-    }
-  }
-  return tagId;
+  return TAG_LABELS[tagId] ?? tagId;
 }
 
 export function TagProgress({ items }: TagProgressProps) {
