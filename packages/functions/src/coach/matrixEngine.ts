@@ -22,11 +22,12 @@ export function applyMatrixDelta(
     current.derivacionAcordada ||
     (delta.deltaConfianzaEnLaAyuda === 2 && newConfianza >= 5);
 
-  // intensidadEmocional floor: cannot drop below 5 unless both floor conditions are met
+  // intensidadEmocional floor: cannot drop below 2 while floor is active.
+  // Floor lifts when confianza >= 7 AND derivacion agreed (full resolution path).
   const rawIntensidad = current.intensidadEmocional + delta.deltaIntensidadEmocional;
   const floorActive = !(newConfianza >= 7 && derivacionAcordada);
   const newIntensidad = floorActive
-    ? clamp(rawIntensidad, 5, 10)
+    ? clamp(rawIntensidad, 2, 10)
     : clamp(rawIntensidad, 1, 10);
 
   const newApertura = clamp(current.apertura + delta.deltaApertura, 1, 10);

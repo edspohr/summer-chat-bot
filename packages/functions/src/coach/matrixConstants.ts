@@ -9,65 +9,72 @@ In addition to the tag evaluation above, you must also evaluate how the trainee'
 most recent turn affects the character's three internal emotional variables.
 This evaluation runs in the same call and uses the same conversation context.
 
+Calibration principle: this is a FORMATIVE demo for novice teachers. Reward any genuine
+warm effort generously. Punishments are gentle and never stack within a single turn.
+Bias toward small positive movement — the gamification must feel gratifying, not punitive.
+
 ## The three variables and their rules
 
 ### intensidadEmocional (current value in EMOTIONAL_STATE_VARIABLES above)
 Range 1..10. Goal: bring it DOWN to 1.
-  INCREASES (+1 or +2):
-    - Trainee minimizes the character's pain ("no es para tanto", "otros están peor")
-    - Trainee uses toxic positivity ("todo va a estar bien", "sé positiva/o")
-    - Trainee fires multiple questions in a single turn without pause
-    - Trainee asserts rigid pedagogical authority ("como profesor/a debo decirte…")
-  DECREASES (-1):
-    - Trainee delivers precise emotional validation (names the specific emotion observed)
-  FLOOR RULE: cannot drop below 5 UNLESS both are true:
-    (a) confianzaEnLaAyuda >= 7
-    (b) derivacionAcordada is true (an accompanied referral was verbally agreed in-context)
+  INCREASES (at most +1 per turn, never stack multiple causes):
+    - +1: trainee minimizes pain, uses toxic positivity, fires a cascade of questions,
+      or asserts rigid school authority
+  DECREASES:
+    - -1: trainee delivers any warm, non-judgmental response (listening, presence, kindness)
+    - -2: trainee delivers precise emotional validation (names the specific emotion observed)
+  FLOOR RULE: cannot drop below 2 while the floor is active (see engine). Floor lifts when
+    confianzaEnLaAyuda >= 7 AND derivacionAcordada is true.
 
 ### apertura (current value in EMOTIONAL_STATE_VARIABLES above)
 Range 1..10. Goal: bring it UP to 10.
-  SPATIAL MODIFIER (apply once only, first occurrence):
-    - If conversation is still in a public space past turn 3 AND trainee has NOT proposed
-      moving: delta -2
-    - When trainee explicitly proposes moving to a private or safe space: delta +2
+  NOTE: do NOT apply any spatial penalty for remaining in a public space. Martina is at
+  school; the context is a hallway conversation. Ignore any prior spatial-modifier rule.
   INCREASES:
-    - +1: trainee demonstrates active listening (paraphrase, reflection, brief acknowledgment)
+    - +1: trainee demonstrates any warm, attentive, or patient behaviour (paraphrase,
+      reflection, brief acknowledgment, gentle presence, not interrupting)
     - +2: trainee asks a well-formed direct question about ideation, explicitly named
       (only valid AFTER at least one prior validation turn)
-  DECREASES:
-    - -1: trainee fires multiple questions without space ("¿y cuándo? ¿y por qué? ¿y desde cuándo?")
-    - -1: trainee makes comparison to the character's father (in this scenario, a stressor)
-    - -1: trainee appeals to teacher authority ("como tu profe te digo…")
+    - +1: trainee explicitly proposes moving to a private space (bonus, not required)
+  DECREASES (at most -1 per turn):
+    - -1: trainee fires cascade questions without space, or appeals to teacher authority
 
 ### confianzaEnLaAyuda (current value in EMOTIONAL_STATE_VARIABLES above)
-Range 1..10. Goal: bring it UP to 10.
+Range 0..10. Goal: bring it UP to 10.
   INCREASES:
-    - +1: trainee maps a safe personal bond (grandfather, friend Vale, sister)
-    - +2: trainee co-constructs an accompanied bridge to the school psychologist
-  HARD RESET TO 0:
-    - Dismissive/bureaucratic referral ("habla con la psicóloga y ya", "ese no es mi tema")
-    - Premature breach of confidentiality ("voy a tener que llamar a tu apoderada altiro")
+    - +1: trainee maps any safe personal bond (grandfather, friend Vale, sister)
+    - +1: trainee mentions or normalises the school counsellor / orientadora with warmth
+    - +2: trainee co-constructs an accompanied bridge to the school counsellor
+      (offers to go together, frames it as support not reporting)
+  SOFT DROP (replaces all hard resets):
+    - -2: trainee is explicitly dismissive/bureaucratic AND breaches confidentiality in
+      the same turn ("habla con la psicóloga y ya" while also saying "voy a llamar a
+      tu mamá"). Both conditions must be present simultaneously.
+    - -1: trainee mentions referral in a cold/administrative way without accompaniment
+      ("anda donde la orientadora")
+  IMPORTANT: a single clumsy referral ("habla con la orientadora") is NOT a hard reset.
+  Never output "RESET_ZERO". Use integer deltas only for this variable.
 
 ## Output format for matrix (add as sibling key to evaluated_tags)
 
 "matrixDelta": {
   "deltaIntensidadEmocional": <integer in [-3, +3]>,
   "deltaApertura": <integer in [-3, +3]>,
-  "deltaConfianzaEnLaAyuda": <integer in [-3, +3] OR the string "RESET_ZERO">,
+  "deltaConfianzaEnLaAyuda": <integer in [-3, +3]>,
   "tagsObservados": ["tag IDs from evaluated_tags where evidence_detected=true"],
   "antiPatronesDetectados": ["anti-pattern IDs triggered this turn"],
   "razonamientoBreve": "<= 140 chars explaining main reason for delta>"
 }
 
 If the trainee turn has no clear effect on a variable, output 0 for that delta.
-Only output "RESET_ZERO" for deltaConfianzaEnLaAyuda if a hard-reset anti-pattern is present.
+Never output "RESET_ZERO" — use -2 for the most severe negative event.
 `;
 
 // Initial matrix state for scenario "martina" (and any scenario that does not override it)
 export const INITIAL_ESTADO_MATRIZ = {
   intensidadEmocional: 6,
-  apertura: 4,
-  confianzaEnLaAyuda: 3,
+  apertura: 5,
+  confianzaEnLaAyuda: 4,
   pisoIntensidadActivo: true,
   derivacionAcordada: false,
 } as const;
