@@ -77,7 +77,7 @@ function buildScenarioContextSummary(scenario: Scenario, emotionalState: Emotion
 const COACH_PROMPT_VERSION = "coach_conversational_v1";
 
 export const coachTurn = onCall(
-  { region: "southamerica-west1", invoker: "public" },
+  { region: "southamerica-west1", invoker: "public", timeoutSeconds: 180, memory: "512MiB" },
   async (request: CallableRequest) => {
     const userId = request.auth?.uid;
     if (userId === undefined) {

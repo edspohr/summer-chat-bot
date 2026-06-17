@@ -286,36 +286,27 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
             <div ref={bottomRef} />
           </div>
 
-          <div className="border-t border-stone-100 bg-white px-4 pt-3 pb-4 flex flex-col gap-2 shadow-sm z-10 relative">
-            <div className="flex gap-3 items-end">
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Escribe tu respuesta..."
-                rows={1}
-                disabled={inputLocked}
-                className="flex-1 resize-none rounded-2xl border border-stone-200 bg-warm-bg px-4 py-3 font-secondary text-sm focus:outline-none focus:ring-2 focus:ring-summer-blue/50 disabled:opacity-50 transition-all"
-              />
-              <button
-                onClick={() => void handleSend()}
-                disabled={inputLocked || !input.trim()}
-                className="bg-summer-blue hover:bg-blue-400 text-white rounded-2xl px-5 py-3 text-sm font-bold font-secondary tracking-wide disabled:opacity-40 transition-colors shadow-sm"
-              >
-                Enviar
-              </button>
-            </div>
+          <div className="border-t border-stone-100 bg-white px-4 pt-3 pb-4 flex gap-3 items-end shadow-sm z-10 relative">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Escribe tu respuesta..."
+              rows={1}
+              disabled={inputLocked}
+              className="flex-1 resize-none rounded-2xl border border-stone-200 bg-warm-bg px-4 py-3 font-secondary text-sm focus:outline-none focus:ring-2 focus:ring-summer-blue/50 disabled:opacity-50 transition-all"
+            />
             <button
-              onClick={goToReport}
-              disabled={isLoading}
-              className="w-full text-center text-xs font-secondary font-semibold text-stone-400 hover:text-summer-blue hover:bg-summer-blue/5 rounded-xl py-1.5 transition-colors disabled:opacity-40"
+              onClick={() => void handleSend()}
+              disabled={inputLocked || !input.trim()}
+              className="bg-summer-blue hover:bg-blue-400 text-white rounded-2xl px-5 py-3 text-sm font-bold font-secondary tracking-wide disabled:opacity-40 transition-colors shadow-sm"
             >
-              Ir al informe →
+              Enviar
             </button>
           </div>
         </div>
 
-        {/* Emotional matrix side panel — sticky, scrolls with the header pinned */}
+        {/* Emotional matrix side panel — sticky */}
         {estadoMatriz !== null && (
           <aside className="hidden sm:flex flex-col w-52 border-l border-stone-100 bg-white px-3 py-4 space-y-3 sticky top-0 self-start max-h-screen overflow-y-auto">
             <p className="font-title text-[11px] uppercase tracking-wide text-stone-400">
@@ -326,6 +317,28 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
               changedVars={changedVars}
               deltaSign={deltaSign}
             />
+            {/* "Ir al informe" — always visible, enabled only after 5 minutes */}
+            {phase !== "idle" && (
+              <div className="pt-3 border-t border-stone-100">
+                {phase === "running" ? (
+                  <button
+                    disabled
+                    className="w-full bg-stone-100 text-stone-400 rounded-2xl py-3 px-3 text-xs font-bold font-secondary tracking-wide cursor-not-allowed"
+                    title="Disponible después de 5 minutos"
+                  >
+                    Ver mi informe →
+                  </button>
+                ) : (
+                  <button
+                    onClick={goToReport}
+                    disabled={isLoading}
+                    className="w-full bg-summer-teal hover:bg-teal-400 text-white rounded-2xl py-3 px-3 text-xs font-bold font-secondary tracking-wide shadow-sm transition-all hover:scale-[1.02] disabled:opacity-40"
+                  >
+                    Ver mi informe →
+                  </button>
+                )}
+              </div>
+            )}
           </aside>
         )}
       </div>

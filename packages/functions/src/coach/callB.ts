@@ -54,13 +54,14 @@ export async function runCallB(
   const prompt = buildPrompt(input, template, includeMatrix);
 
   const vertexAI = new VertexAI({ project: VERTEX_PROJECT, location: VERTEX_REGION });
-  // Call B: temperature 0.2 per spec (was 0.15); JSON structured output; maxOutputTokens 200
-  // when matrix-only, 2048 when evaluating tags (tags JSON is larger).
+  // Call B: temperature 0.2; JSON structured output.
+  // 4096 tokens when evaluating tags+matrix (8 tags * ~400 tokens each + matrix delta).
+  // 256 tokens when matrix-only (no tags to evaluate).
   const model = vertexAI.getGenerativeModel({
     model: GEMINI_MODEL,
     generationConfig: {
       temperature: 0.2,
-      maxOutputTokens: includeMatrix ? 2048 : 200,
+      maxOutputTokens: includeMatrix ? 4096 : 256,
       responseMimeType: "application/json",
     },
   });
