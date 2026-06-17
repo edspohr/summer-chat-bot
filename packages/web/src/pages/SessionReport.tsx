@@ -111,12 +111,18 @@ export default function SessionReport() {
           </p>
         </div>
 
-        <div className="pt-6 border-t border-stone-100">
+        <div className="pt-6 border-t border-stone-100 flex flex-col gap-3">
           <button
-            onClick={() => navigate("/scenarios")}
-            className="w-full bg-summer-blue hover:bg-blue-400 text-white font-secondary rounded-2xl py-4 text-sm font-bold tracking-wide transition-colors"
+            onClick={() => navigate("/martina")}
+            className="w-full bg-summer-teal hover:bg-teal-400 text-white font-secondary rounded-2xl py-4 text-sm font-bold tracking-wide transition-colors shadow-sm"
           >
-            Volver a Escenarios
+            Intentarlo de nuevo →
+          </button>
+          <button
+            onClick={() => navigate("/")}
+            className="w-full bg-stone-100 hover:bg-stone-200 text-stone-600 font-secondary rounded-2xl py-3 text-sm font-semibold tracking-wide transition-colors"
+          >
+            Volver al inicio
           </button>
         </div>
 
