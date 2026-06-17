@@ -1,0 +1,47 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "functions": [
+    {
+      "source": "packages/functions",
+      "codebase": "default",
+      "runtime": "nodejs20",
+      "ignore": ["node_modules", ".git", "*.md"],
+      "predeploy": [
+        "pnpm --filter @salvador/shared build",
+        "rm -rf packages/functions/vendor-shared && mkdir -p packages/functions/vendor-shared && cp packages/shared/package.json packages/functions/vendor-shared/ && cp -r packages/shared/dist packages/functions/vendor-shared/dist",
+        "pnpm --filter @salvador/functions build"
+      ]
+    }
+  ],
+  "hosting": {
+    "public": "packages/web/dist",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  },
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "firestore": {
+      "port": 8080
+    },
+    "functions": {
+      "port": 5001
+    },
+    "hosting": {
+      "port": 5000
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4000
+    }
+  }
+}

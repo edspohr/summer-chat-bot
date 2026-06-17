@@ -1,0 +1,15 @@
+node_modules/
+dist/
+packages/functions/vendor-shared/
+.env
+.env.local
+.env.*.local
+*.log
+.firebase/
+.firebaserc.local
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+functions-debug.log
+.DS_Store
+memory/

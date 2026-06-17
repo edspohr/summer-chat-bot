@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Authenticated users can read scenario documents (not sensitive).
+    match /scenarios/{scenarioId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Tag progress: authenticated reads (sessionIds are UUIDs, not guessable).
+    // Write is backend-only (firebase-admin bypasses rules).
+    match /tag_progress/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Knowledge base: authenticated reads for future client-side use.
+    match /knowledge_base/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Sessions: authenticated users can read their own sessions only.
+    // Messages subcollection is audit-only — backend reads via admin SDK.
+    // Write is backend-only (firebase-admin bypasses rules).
+    match /sessions/{sessionId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow write: if false;
+    }
+
+    // User documents: each user can read/write their own document only.
+    // - System "role" field is locked: only allowed value on create is "participant",
+    //   and updates cannot change it. Admins/facilitators are set manually by the
+    //   backend (Firestore console or set-admin script) and cannot be self-elevated.
+    // - All other fields (displayName, email, profile.*) are freely writable by the
+    //   owning user.
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.role == "participant";
+
+      allow update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.role == resource.data.role;
+    }
+
+    // Lab sessions (dev-only tool): admin users only.
+    // Read is needed by the web client for session export (LabChat.tsx).
+    // Writes go through Cloud Functions admin SDK (bypasses rules),
+    // but the rule is written for defense-in-depth.
+    match /lab_sessions/{sessionId} {
+      allow read, write: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+
+      match /messages/{messageId} {
+        allow read, write: if request.auth != null
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+      }
+    }
+
+    // All other documents: deny until explicitly opened.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

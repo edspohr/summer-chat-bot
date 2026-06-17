@@ -1,0 +1,25 @@
+{
+  "name": "salvador",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm --filter @salvador/shared build && pnpm --filter @salvador/functions build && pnpm --filter @salvador/web build",
+    "typecheck": "pnpm --filter @salvador/shared build && pnpm --filter @salvador/functions typecheck && pnpm --filter @salvador/web typecheck",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "test:rules": "JAVA_HOME=/opt/homebrew/Cellar/openjdk/25.0.2/libexec/openjdk.jdk/Contents/Home firebase emulators:exec --only firestore 'node_modules/.bin/tsx scripts/test-firestore-rules.ts'",
+    "dev": "pnpm --filter @salvador/web dev"
+  },
+  "pnpm": {
+    "overrides": {
+      "@salvador/shared": "workspace:*"
+    }
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.1",
+    "firebase": "^10.14.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.4.5"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "summer-chatbot-dev",
+    "dev": "summer-chatbot-dev",
+    "prod": "summer-chatbot-prod"
+  }
+}
