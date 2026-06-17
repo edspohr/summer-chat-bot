@@ -216,52 +216,68 @@ export const coachTurn = onCall(
       promptVersion: "coach_evaluator_v1",
     };
 
-    // CRITICAL: Call A and Call B run in parallel — never await sequentially.
+    // Call A (Martina's reply) runs first and its result is awaited before responding.
+    // Call B (evaluator) fires immediately after and runs fire-and-forget — the user
+    // receives Martina's reply in ~2s; tags and matrix bars update ~2-3s later via
+    // Firestore. This is the primary latency optimization for the formative demo.
+    // Tradeoff: if the function container is recycled before Call B finishes, that
+    // turn's evaluation is lost. Acceptable for demo; revisit for production.
+    // See debt/0017-callb-fire-and-forget.md.
     const callAStart = Date.now();
+    const callAResult = await runCallA(callAInput, modo);
+    const callALatency = callAResult.latencyMs;
+
+    // Fire Call B without awaiting — updates Firestore in background.
     const callBStart = Date.now();
-
-    const [callAResult, callBResult] = await Promise.all([
-      runCallA(callAInput, modo),
+    const callBPromise = (
       modo === "escenario"
-        ? runCallB(callBInput, true) // includeMatrix=true in escenario mode
-        : runCallB(callBInput, false),
-    ]);
+        ? runCallB(callBInput, true)
+        : runCallB(callBInput, false)
+    ).then(async (callBResult) => {
+      const callBLatency = Date.now() - callBStart;
+      const latenciaMs = {
+        personaje: callALatency,
+        evaluador: callBLatency,
+        total: Date.now() - turnStart,
+      };
+      console.log(`[COACH] Turn ${turnNumber} latency — personaje: ${latenciaMs.personaje}ms, evaluador: ${latenciaMs.evaluador}ms, total: ${latenciaMs.total}ms`);
 
-    const callBLatency = Date.now() - callBStart;
-    const totalLatency = Date.now() - turnStart;
+      if (modo === "escenario" && currentMatrix !== null && callBResult.matrixDelta !== undefined) {
+        const newMatrix = applyMatrixDelta(currentMatrix, callBResult.matrixDelta);
+        const turnoId = randomUUID();
+        await persistMatrixUpdate({
+          sessionId,
+          turnoId,
+          newState: newMatrix,
+          delta: callBResult.matrixDelta,
+          latency: latenciaMs,
+          rol: "usuario",
+          contenido: traineeMessage,
+        });
+      }
+
+      await accumulateTags({
+        sessionId,
+        evaluatorOutput: callBResult,
+        pendingTags: tagDefinitions,
+        turnNumber,
+      });
+    }).catch((err: unknown) => {
+      console.error(`[COACH] Call B background error on turn ${turnNumber}:`, err);
+    });
+
+    // Keep a reference so Cloud Functions doesn't GC the promise before it resolves.
+    void callBPromise;
 
     const latenciaMs = {
-      personaje: callAResult.latencyMs,
-      evaluador: callBLatency,
-      total: totalLatency,
+      personaje: callALatency,
+      evaluador: 0, // unknown at response time — logged async
+      total: Date.now() - turnStart,
     };
 
-    // Log per-turn latency (server-side only, surfaced on admin surface).
-    console.log(`[COACH] Turn ${turnNumber} latency — personaje: ${latenciaMs.personaje}ms, evaluador: ${latenciaMs.evaluador}ms, total: ${latenciaMs.total}ms`);
-
-    // Apply matrix deltas (escenario mode only).
-    let newMatrix: EstadoMatriz | null = null;
-    if (modo === "escenario" && currentMatrix !== null && callBResult.matrixDelta !== undefined) {
-      newMatrix = applyMatrixDelta(currentMatrix, callBResult.matrixDelta);
-      const turnoId = randomUUID();
-      await persistMatrixUpdate({
-        sessionId,
-        turnoId,
-        newState: newMatrix,
-        delta: callBResult.matrixDelta,
-        latency: latenciaMs,
-        rol: "usuario",
-        contenido: traineeMessage,
-      });
-    }
-
-    // Accumulate OASIS tag scores.
-    await accumulateTags({
-      sessionId,
-      evaluatorOutput: callBResult,
-      pendingTags: tagDefinitions,
-      turnNumber,
-    });
+    // Matrix state for this response is the pre-turn state (Call B hasn't resolved yet).
+    // The client will receive updated bars on the next turn via the callable response.
+    const newMatrix: EstadoMatriz | null = null;
 
     // Layer 2: handle frame-break detected by Call A.
     let frameBreakHandled = false;
@@ -281,7 +297,7 @@ export const coachTurn = onCall(
             role: "user",
             content: traineeMessage,
             turnNumber,
-            evaluatorOutput: callBResult,
+            evaluatorOutput: { evaluated_tags: [] }, // Call B result arrives async
             safetyLayerTriggered: "L2",
             promptVersion: COACH_PROMPT_VERSION,
           }),
@@ -299,8 +315,8 @@ export const coachTurn = onCall(
           safe: false,
           safetyLayer: "L2",
           frameBreakSuspected: true,
-          tagUpdates: callBResult.evaluated_tags.length,
-          estadoMatriz: newMatrix,
+          tagUpdates: 0,
+          estadoMatriz: currentMatrix,
           timerState: computeTimerState(sesionIniciadaEn, cronometroAnulado),
           latenciaMs,
         };
@@ -308,14 +324,15 @@ export const coachTurn = onCall(
       frameBreakHandled = true;
     }
 
-    // Persist the normal turn pair.
+    // Persist the normal turn pair. evaluatorOutput is empty here — Call B
+    // writes tag scores and matrix directly to Firestore in the background.
     await Promise.all([
       sessionManager.appendMessage({
         sessionId,
         role: "user",
         content: traineeMessage,
         turnNumber,
-        evaluatorOutput: callBResult,
+        evaluatorOutput: { evaluated_tags: [] },
         promptVersion: COACH_PROMPT_VERSION,
       }),
       sessionManager.appendMessage({
@@ -335,8 +352,8 @@ export const coachTurn = onCall(
       safe: true,
       safetyLayer: null,
       frameBreakSuspected: callAResult.frameBreakSuspected && !frameBreakHandled,
-      tagUpdates: callBResult.evaluated_tags.length,
-      estadoMatriz: newMatrix ?? currentMatrix,
+      tagUpdates: 0, // unknown at response time — Call B running async
+      estadoMatriz: currentMatrix, // matrix updated async; client sees new state next turn
       timerState: computeTimerState(sesionIniciadaEn, cronometroAnulado),
       latenciaMs,
     };

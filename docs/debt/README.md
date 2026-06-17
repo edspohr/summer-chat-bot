@@ -1,6 +1,6 @@
 # Technical Debt Register
 
-_Last updated: 2026-06-12 (0015, 0016 added — engine upgrade)_
+_Last updated: 2026-06-17 (0017, 0018 added — formative workshop build)_
 
 | ID | Title | Severity | Status |
 |---|---|---|---|
@@ -20,15 +20,23 @@ _Last updated: 2026-06-12 (0015, 0016 added — engine upgrade)_
 | [0014](0014-pnpm-workspace-cloudbuild.md) | pnpm workspace:* incompatible with Cloud Build npm — resolved via file:../shared | medium | implemented |
 | [0015](0015-matrix-no-sse-streaming.md) | Matrix state delivered via callable response, not real-time Firestore listener | medium | open |
 | [0016](0016-lab-matrix-no-turn-persistence.md) | Lab matrix state not persisted to turns subcollection (session doc only) | low | open |
+| [0017](0017-callb-fire-and-forget.md) | Call B fire-and-forget — matrix bars lag one turn; turn evaluation lost on container GC | medium | open |
+| [0018](0018-martina-formative-workshop-2026-06-17.md) | Formative workshop build shortcuts — anon auth, prompt sync, clinical validation gap | medium | open |
 
 > **Debt 0003 is the highest urgency**: Layer 3 regex patterns are the first line of defense
 > for real crisis detection. Without clinical validation, there is risk of false negatives
 > with safety consequences. Do not deploy to production without a co-design session with
 > the Fundación Summer clinical team.
 >
+> **Debt 0017**: Call B runs fire-and-forget to reduce perceived latency from 13s to ~2s.
+> Matrix bars update one turn behind. On container GC (rare), a turn's evaluation is silently
+> lost. Revert instructions in the debt doc. Proper fix: Firestore listener on `estadoMatriz`
+> (Option B in 0017) — low risk, no prompt changes needed.
+>
+> **Debt 0018**: records all shortcuts from the 2026-06-17 formative workshop sprint.
+> Most urgent follow-up: sync `docs/prompts/coach_conversational_v1.md` with `content.ts`,
+> and run a delta review of the new `MATRIX_EVALUATOR_ADDENDUM` with the clinical team.
+>
 > **Debt 0006 next step**: run `pnpm --filter @salvador/functions seed:no-embeddings` against
 > the emulator to verify the 22 chunks land correctly, then `firebase deploy --only firestore:indexes`
 > before enabling RAG in production.
->
-> **Debt 0010** (lab_sessions Firestore rules): ~~open~~ **implemented 2026-05-12** — rules written and
-> emulator-tested (11/11). Deploy with `firebase deploy --only firestore:rules --project summer-chatbot-dev`.
