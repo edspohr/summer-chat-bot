@@ -2,6 +2,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInAnonymously,
   GoogleAuthProvider,
   updateProfile,
   sendPasswordResetEmail,
@@ -69,6 +70,10 @@ export async function signInWithGoogle(): Promise<void> {
 
 export async function requestPasswordReset(email: string): Promise<void> {
   await sendPasswordResetEmail(auth, email);
+}
+
+export async function signInAnon(): Promise<void> {
+  await signInAnonymously(auth);
 }
 
 export async function logout(): Promise<void> {

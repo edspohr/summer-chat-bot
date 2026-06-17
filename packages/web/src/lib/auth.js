@@ -1,4 +1,4 @@
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, updateProfile, sendPasswordResetEmail, signOut, } from "firebase/auth";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, signInAnonymously, GoogleAuthProvider, updateProfile, sendPasswordResetEmail, signOut, } from "firebase/auth";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "../firebase.js";
 async function ensureUserDoc(user, profileRole) {
@@ -31,6 +31,9 @@ export async function signInWithGoogle() {
 }
 export async function requestPasswordReset(email) {
     await sendPasswordResetEmail(auth, email);
+}
+export async function signInAnon() {
+    await signInAnonymously(auth);
 }
 export async function logout() {
     await signOut(auth);

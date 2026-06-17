@@ -8,6 +8,7 @@ import ScenarioSelect from "./pages/ScenarioSelect.js";
 import CoachSession from "./pages/CoachSession.js";
 import SessionReport from "./pages/SessionReport.js";
 import LabChat from "./pages/LabChat.js";
+import MartinaDemo from "./pages/MartinaDemo.js";
 
 export default function App() {
   return (
@@ -21,6 +22,8 @@ export default function App() {
         <Route path="/scenarios" element={<ScenarioSelect />} />
         <Route path="/session/:sessionId" element={<CoachSession />} />
         <Route path="/report/:sessionId" element={<SessionReport />} />
+        {/* /martina — QR demo entry: anonymous auth + direct Martina session */}
+        <Route path="/martina" element={<MartinaDemo />} />
         {/* /lab is admin-only — not linked in any participant-visible navigation */}
         <Route path="/lab" element={<LabChat />} />
       </Routes>
