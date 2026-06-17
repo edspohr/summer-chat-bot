@@ -124,7 +124,8 @@ interface ActiveSessionProps {
 }
 
 function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
-  const tagProgressItems = useTagProgress(sessionId);
+  const allTagIds = scenario.requiredTags.map((t) => t.tagId);
+  const tagProgressItems = useTagProgress(sessionId, allTagIds);
   const completedTagIds = tagProgressItems.filter((t) => t.completed).map((t) => t.tagId);
 
   const { messages, send, isLoading, crisisTemplate, clearCrisis, estadoMatriz, timerState, timerExpired, latenciaMs } =
