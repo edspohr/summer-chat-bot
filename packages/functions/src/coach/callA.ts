@@ -101,8 +101,7 @@ export async function runCallA(
   const model = vertexAI.getGenerativeModel({
     model: GEMINI_MODEL,
     systemInstruction,
-    // temperature 0.85, topP 0.95 per spec; 120 tokens keeps Martina terse
-    generationConfig: { temperature: 0.85, topP: 0.95, maxOutputTokens: 120 },
+    generationConfig: { temperature: 0.85, topP: 0.95, maxOutputTokens: 320 },
   });
 
   const streamResult = await model.generateContentStream(input.traineeMessage);
