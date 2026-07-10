@@ -18,6 +18,8 @@ interface EmotionalMatrixProps {
   deltaSign?: Record<MatrixVarKey, "good" | "bad" | "none">;
   // Legacy single-var prop kept for LabChat compatibility
   changedVar?: MatrixVarKey | null;
+  // Compact horizontal layout for mobile floating bar (A3). Hides labels.
+  variant?: "full" | "compact";
 }
 
 interface BarProps {
@@ -136,6 +138,61 @@ const DEFAULT_SIGNS: Record<MatrixVarKey, "good" | "bad" | "none"> = {
   confianzaEnLaAyuda: "none",
 };
 
+interface CompactBarProps {
+  shortLabel: string;
+  value: number;
+  color: string;
+  trackColor: string;
+  ariaLabel: string;
+  isPulsing: boolean;
+  direction: "good" | "bad" | "none";
+}
+
+function CompactMatrixBar({
+  shortLabel,
+  value,
+  color,
+  trackColor,
+  ariaLabel,
+  isPulsing,
+  direction,
+}: CompactBarProps) {
+  const pct = Math.round((value / 10) * 100);
+  const fillColor =
+    isPulsing && direction === "good"
+      ? "bg-emerald-400"
+      : isPulsing && direction === "bad"
+      ? "bg-rose-400"
+      : color;
+  return (
+    <div className="flex-1 min-w-0">
+      <div className="flex items-center justify-between mb-0.5">
+        <span className="font-secondary text-[10px] font-semibold text-stone-600 truncate">
+          {shortLabel}
+        </span>
+        <span className="font-secondary text-[10px] font-bold text-stone-700 tabular-nums flex-shrink-0 ml-1">
+          {value}
+        </span>
+      </div>
+      <div
+        className={`h-1.5 w-full rounded-full ${trackColor}`}
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={10}
+        aria-valuenow={value}
+        aria-label={ariaLabel}
+      >
+        <div
+          className={`h-full rounded-full ${fillColor} transition-all duration-[400ms] ease-out ${
+            isPulsing ? "animate-matrix-pulse" : ""
+          }`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function EmotionalMatrix({
   estado,
   showDeltas = false,
@@ -144,6 +201,7 @@ export function EmotionalMatrix({
   changedVars,
   deltaSign,
   changedVar = null,
+  variant = "full",
 }: EmotionalMatrixProps) {
   // Support legacy changedVar prop (LabChat) by converting to a Set
   const activeVars: ReadonlySet<MatrixVarKey> =
@@ -154,6 +212,40 @@ export function EmotionalMatrix({
       : EMPTY_SET;
 
   const signs = deltaSign ?? DEFAULT_SIGNS;
+
+  if (variant === "compact") {
+    return (
+      <div className="flex gap-3 px-2 py-2">
+        <CompactMatrixBar
+          shortLabel="Intensidad"
+          value={estado.intensidadEmocional}
+          color="bg-summer-peach"
+          trackColor="bg-summer-peach/20"
+          ariaLabel="Intensidad emocional de Martina"
+          isPulsing={activeVars.has("intensidadEmocional")}
+          direction={signs.intensidadEmocional}
+        />
+        <CompactMatrixBar
+          shortLabel="Apertura"
+          value={estado.apertura}
+          color="bg-summer-teal"
+          trackColor="bg-summer-teal/20"
+          ariaLabel="Apertura de Martina"
+          isPulsing={activeVars.has("apertura")}
+          direction={signs.apertura}
+        />
+        <CompactMatrixBar
+          shortLabel="Confianza"
+          value={estado.confianzaEnLaAyuda}
+          color="bg-summer-blue"
+          trackColor="bg-summer-blue/20"
+          ariaLabel="Confianza de Martina en la ayuda"
+          isPulsing={activeVars.has("confianzaEnLaAyuda")}
+          direction={signs.confianzaEnLaAyuda}
+        />
+      </div>
+    );
+  }
 
   const buildTooltip = (varName: MatrixVarKey): string => {
     if (!activeVars.has(varName) || razonamientoBreve === undefined) return "";

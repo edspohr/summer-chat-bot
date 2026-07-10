@@ -70,9 +70,10 @@ async function collectStream(
 ): Promise<string> {
   let text = "";
   for await (const chunk of stream) {
-    const part = chunk.candidates?.[0]?.content?.parts?.[0];
-    if (part !== undefined && typeof part.text === "string") {
-      text += part.text;
+    const parts = chunk.candidates?.[0]?.content?.parts;
+    if (parts === undefined) continue;
+    for (const part of parts) {
+      if (typeof part.text === "string") text += part.text;
     }
   }
   return text;

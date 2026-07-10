@@ -6,6 +6,7 @@ import {
   type UserProfileRole,
 } from "@salvador/shared";
 import { signUpWithEmail, translateAuthError } from "../lib/auth.js";
+import { AppIcon } from "../components/AppIcon.js";
 
 const PROFILE_ROLE_OPTIONS = UserProfileRoleSchema.options;
 
@@ -57,9 +58,7 @@ export default function Register() {
     <main className="min-h-screen flex flex-col items-center justify-center p-6 bg-warm-bg">
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center space-y-3">
-          <div className="w-16 h-16 rounded-[1.5rem] bg-summer-blue flex items-center justify-center shadow-md">
-            <span className="text-white text-4xl font-title">S</span>
-          </div>
+          <AppIcon size="lg" />
           <div className="text-center space-y-1">
             <h1 className="text-2xl font-title uppercase tracking-wide text-summer-blue">Crear cuenta</h1>
             <p className="text-sm font-secondary text-stone-500 font-semibold">Únete a Summer ChatBot</p>

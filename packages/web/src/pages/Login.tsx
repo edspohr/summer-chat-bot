@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { signInWithEmail, signInWithGoogle, translateAuthError } from "../lib/auth.js";
+import { AppIcon } from "../components/AppIcon.js";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -44,9 +45,7 @@ export default function Login() {
     <main className="min-h-screen flex flex-col items-center justify-center p-6 bg-warm-bg">
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center space-y-4">
-          <div className="w-16 h-16 rounded-[1.5rem] bg-summer-blue flex items-center justify-center shadow-md">
-            <span className="text-white text-4xl font-title">S</span>
-          </div>
+          <AppIcon size="lg" />
           <div className="text-center space-y-1">
             <h1 className="text-2xl font-title uppercase tracking-wide text-summer-blue">Summer ChatBot</h1>
             <p className="text-sm font-secondary text-stone-500 font-semibold">Fundación Summer</p>

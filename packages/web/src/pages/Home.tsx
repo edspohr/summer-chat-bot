@@ -2,16 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth.js";
 import { logout } from "../lib/auth.js";
-
-function AppIcon({ size = "sm" }: { size?: "sm" | "lg" }) {
-  const dim = size === "lg" ? "w-16 h-16 rounded-3xl" : "w-10 h-10 rounded-xl";
-  const text = size === "lg" ? "text-3xl" : "text-base";
-  return (
-    <div className={`${dim} bg-summer-blue flex items-center justify-center flex-shrink-0 shadow-sm`}>
-      <span className={`text-white font-title ${text}`}>S</span>
-    </div>
-  );
-}
+import { AppIcon } from "../components/AppIcon.js";
 
 export default function Home() {
   const { user, loading } = useAuth();
