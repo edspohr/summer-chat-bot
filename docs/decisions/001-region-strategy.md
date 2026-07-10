@@ -44,3 +44,18 @@ Pattern validated in prior products built by the same technical team.
 The us-central1 endpoint is hard-coded in packages/functions/src/config/vertex.ts.
 This is intentional. Removing the hard-code requires a deliberate ADR review,
 not a config change.
+
+## Amendment 2026-07-10 — Cloud Scheduler exception
+
+Cloud Scheduler is not offered in southamerica-west1. The Phase 3 (A2) inactivity
+scheduler function `inactivityScan` therefore runs in southamerica-east1 (São Paulo,
+Brazil), the closest Scheduler-valid region.
+
+Data residency is preserved: Firestore stays in southamerica-west1; the scheduler
+only reads/writes over the network, no user data is persisted in Brazil. All other
+Cloud Functions (coachTurn, mentorChat, timerOverride, crisisBranch, labChat)
+remain in southamerica-west1 as originally decided.
+
+Revisit if Cloud Scheduler ships in southamerica-west1 — the region is a single
+constant in `packages/functions/src/session/inactivityScheduler.ts`, no other code
+depends on it.

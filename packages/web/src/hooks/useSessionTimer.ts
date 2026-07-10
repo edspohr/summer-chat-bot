@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { TimerState } from "@salvador/shared";
 
-// Warning thresholds in elapsed seconds (shown as suggestions, not hard locks)
+// Warning thresholds in elapsed seconds (shown as suggestions, not hard locks).
+// The 10-min mark still changes the timer chip color (see toPhase) but no
+// longer surfaces a toast.
 const WARN_AT_5MIN = 300;
 const WARN_AT_10MIN = 600;
 const WARN_AT_15MIN = 900;
@@ -31,7 +33,7 @@ function toPhase(elapsed: number): TimerPhase {
 }
 
 export function useSessionTimer(
-  onWarning: (at: "5min" | "10min" | "15min") => void,
+  onWarning: (at: "5min" | "15min") => void,
 ): SessionTimerHookResult {
   const [serverStartIso, setServerStartIso] = useState<string | null>(null);
   const [anulado, setAnulado] = useState(false);
@@ -51,12 +53,12 @@ export function useSessionTimer(
       const e = computeElapsed();
       setElapsed(e);
 
+      // 5 min suggests going to the report; 15 min repeats that suggestion
+      // more urgently. 10 min no longer fires a toast — the visual timer
+      // phase change still colors the chip so the trainee sees progress.
       if (e >= WARN_AT_5MIN && !firedWarnings.current.has("5min")) {
         firedWarnings.current.add("5min");
         onWarning("5min");
-      } else if (e >= WARN_AT_10MIN && !firedWarnings.current.has("10min")) {
-        firedWarnings.current.add("10min");
-        onWarning("10min");
       } else if (e >= WARN_AT_15MIN && !firedWarnings.current.has("15min")) {
         firedWarnings.current.add("15min");
         onWarning("15min");
