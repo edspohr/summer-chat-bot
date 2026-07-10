@@ -33,6 +33,16 @@ service cloud.firestore {
     match /sessions/{sessionId} {
       allow read: if request.auth != null && request.auth.uid == resource.data.userId;
       allow write: if false;
+
+      // Phase 3 — the client needs to observe assistant messages written by the
+      // inactivity scheduler (¿Profe, sigue ahí?) via realtime listener.
+      // Ownership check goes through the parent session doc, so a user can only
+      // read messages of their own session. Writes stay backend-only.
+      match /messages/{messageId} {
+        allow read: if request.auth != null
+          && get(/databases/$(database)/documents/sessions/$(sessionId)).data.userId == request.auth.uid;
+        allow write: if false;
+      }
     }
 
     // User documents: each user can read/write their own document only.

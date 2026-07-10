@@ -1,4 +1,5 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { collection, doc, onSnapshot } from "firebase/firestore";
 import type {
   ConversationTurn,
   Scenario,
@@ -10,6 +11,7 @@ import type {
 } from "@salvador/shared";
 import { INITIAL_MATRIX } from "@salvador/shared";
 import { callCoachTurn, callCrisisBranch } from "../lib/functions.js";
+import { db } from "../firebase.js";
 
 interface LocalMessage {
   role: "user" | "assistant";
@@ -94,6 +96,48 @@ export function useCoachSession(
 
   const turnNumberRef = useRef(turnNumber);
   turnNumberRef.current = turnNumber;
+
+  // Realtime listener for out-of-band assistant messages — currently only the
+  // Phase 3 inactivity nudge ("¿Profe, sigue ahí?") is written server-side
+  // outside the coachTurn response. Filters isNudge=true client-side to avoid
+  // needing a single-field index on nested meta.isNudge.
+  const surfacedNudgeIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const q = collection(db, "sessions", sessionId, "messages");
+    const unsub = onSnapshot(q, (snap) => {
+      for (const change of snap.docChanges()) {
+        if (change.type !== "added") continue;
+        if (surfacedNudgeIdsRef.current.has(change.doc.id)) continue;
+        const data = change.doc.data() as {
+          role?: string;
+          content?: string;
+          meta?: { isNudge?: boolean };
+        };
+        if (data.meta?.isNudge !== true) continue;
+        if (data.role !== "assistant" || typeof data.content !== "string") continue;
+        surfacedNudgeIdsRef.current.add(change.doc.id);
+        setMessages((prev) => [...prev, { role: "assistant", content: data.content ?? "" }]);
+      }
+    });
+    return unsub;
+  }, [sessionId]);
+
+  // Realtime listener for session-level state transitions. When the inactivity
+  // scheduler closes the session (state='closed_inactivity'), signal expiry so
+  // the trainee UI navigates to the report — same path as timer-based expiry.
+  // We only watch closed_inactivity here; closed_completed already flows via
+  // the coachTurn response (timerExpired flag).
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "sessions", sessionId), (snap) => {
+      const data = snap.data();
+      if (data === undefined) return;
+      const state = (data as { state?: string }).state;
+      if (state === "closed_inactivity") {
+        setTimerExpired(true);
+      }
+    });
+    return unsub;
+  }, [sessionId]);
 
   const send = useCallback(async (content: string) => {
     if (!content.trim()) return;
