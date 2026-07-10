@@ -118,16 +118,27 @@ function ContextBanner({ scenario }: { scenario: Scenario }) {
         <span className="text-stone-400 font-normal text-base leading-none">{expanded ? "▲" : "▼"}</span>
       </button>
       {expanded && (
-        <div className="px-4 pb-4 space-y-2 text-stone-600 leading-relaxed">
+        <div className="px-4 pb-4 space-y-3 text-stone-600 leading-relaxed">
           <p className="text-stone-500 italic border-t border-summer-blue/10 pt-3">{scenario.initialSituation}</p>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 pt-1">
+
+          <div className="pt-1">
+            <p className="font-semibold text-stone-700 mb-1">Su vida en el colegio</p>
+            <ul className="space-y-0.5 text-stone-500 list-disc list-inside">
+              <li>3° medio · era buena estudiante, ha bajado este semestre</li>
+              <li>Le gustan lenguaje, arte y música. Odia matemáticas y EF</li>
+              <li>Se sienta atrás con un grupo del que últimamente está distanciada</li>
+              <li>Vale, su amiga cercana, se cambió de colegio a fines del año pasado</li>
+            </ul>
+          </div>
+
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
             <div>
               <p className="font-semibold text-stone-700 mb-0.5">Recursos personales</p>
               <ul className="space-y-0.5 text-stone-500 list-disc list-inside">
-                <li>Su abuelo paterno</li>
+                <li>Su abuelo paterno (&quot;el tata&quot;, vive en Melipilla)</li>
                 <li>Amiga Vale (fuera del colegio)</li>
-                <li>Cuaderno de dibujo (mochila)</li>
-                <li>Hermanita menor</li>
+                <li>Cuaderno de dibujo (siempre en la mochila)</li>
+                <li>Hermanita menor Trini (8 años)</li>
               </ul>
             </div>
             <div>
@@ -140,8 +151,20 @@ function ContextBanner({ scenario }: { scenario: Scenario }) {
               </ul>
             </div>
           </div>
+
+          <div>
+            <p className="font-semibold text-stone-700 mb-0.5">Situación familiar</p>
+            <ul className="space-y-0.5 text-stone-500 list-disc list-inside">
+              <li>Vive con su mamá Sandra y su hermana Trini en el sur de Santiago</li>
+              <li>Mamá trabaja turnos largos como auxiliar en una clínica</li>
+              <li>Papá ausente desde los 9 años, la ve muy poco</li>
+              <li>Se siente responsable de su hermanita</li>
+            </ul>
+          </div>
+
           <p className="text-stone-400 text-[10px] pt-1 border-t border-summer-blue/10">
-            Esta información es tuya como docente. Martina no sabe que la tienes.
+            Esta información es tuya como docente — la conoces de tenerla en tu curso.
+            Martina no sabe que la tienes en mente ahora.
           </p>
         </div>
       )}
