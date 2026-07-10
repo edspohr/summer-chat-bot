@@ -11,6 +11,7 @@ import {
   type EstadoMatriz,
 } from "@salvador/shared";
 import { db } from "../config/firebase.js";
+import { loadRuntimeConfig } from "../config/runtimeConfig.js";
 import { runSafetyPipeline } from "../safety/safetyPipeline.js";
 import { classifyMessage } from "../safety/llmClassifier.js";
 import { getTemplate } from "../safety/templates.js";
@@ -21,6 +22,8 @@ import { applyMatrixDelta, persistMatrixUpdate, readMatrixState } from "./matrix
 import { INITIAL_ESTADO_MATRIZ } from "./matrixConstants.js";
 import { maybeStartTimer, computeTimerState, isTimerExpired, overrideTimer } from "../session/timerService.js";
 import { createSessionManager } from "../session/sessionManager.js";
+import { checkAndConsume } from "./rateLimiter.js";
+import { CRISIS_META_v0 } from "./crisisBranchContent.js";
 import { randomUUID } from "node:crypto";
 
 const EmotionalStateSchema = z.object({
@@ -38,6 +41,9 @@ const CoachTurnRequestSchema = z.object({
   emotionalState: EmotionalStateSchema,
   pendingTagIds: z.array(z.string()).default([]),
   modo: SimulationModeSchema.default("escenario"),
+  // Optional non-personal grouping key from entry URL (?c=...). Only meaningful
+  // on the very first turn — createSession stores it on the session doc.
+  cohortCode: z.string().max(120).nullable().optional(),
 });
 
 async function loadScenario(scenarioId: string): Promise<Scenario | null> {
@@ -97,10 +103,33 @@ export const coachTurn = onCall(
       emotionalState,
       pendingTagIds,
       modo,
+      cohortCode,
     } = parsed.data;
 
     const sessionManager = createSessionManager();
     const turnStart = Date.now();
+
+    // Phase 3 rate limit — deliberately BEFORE createSession so a hammered
+    // container does no writes at all. Safety pipeline (below) is still the
+    // first gate on anything user-visible or LLM-touching.
+    const runtimeConfig = await loadRuntimeConfig();
+    if (runtimeConfig.rateLimitEnabled) {
+      const rate = checkAndConsume(userId, runtimeConfig.rpm);
+      if (!rate.allowed) {
+        return {
+          reply: null,
+          safe: true,
+          safetyLayer: null,
+          frameBreakSuspected: false,
+          tagUpdates: 0,
+          estadoMatriz: null,
+          timerState: null,
+          latenciaMs: null,
+          rateLimited: true,
+          retryAfterMs: rate.retryAfterMs,
+        };
+      }
+    }
 
     await sessionManager.createSession({
       sessionId,
@@ -108,9 +137,17 @@ export const coachTurn = onCall(
       scenarioId,
       mode: "coach",
       promptVersion: COACH_PROMPT_VERSION,
+      cohortCode: cohortCode ?? null,
     });
 
-    // Safety pipeline runs FIRST — before any LLM or matrix calls.
+    // Phase 3 activity tracking — mark this user turn and reset the nudge
+    // window. Idempotent; runs on every turn including crisis / rate-limited.
+    // (We reach here only if rate limit passed, so this always corresponds to
+    // a real trainee action.)
+    await sessionManager.updateLastUserActivity(sessionId);
+
+    // Safety pipeline runs FIRST (of anything user-visible) — before any LLM
+    // or matrix calls.
     const safetyResult = await runSafetyPipeline({
       message: traineeMessage,
       lastTurns: conversationHistory,
@@ -140,6 +177,9 @@ export const coachTurn = onCall(
         }),
       ]);
       await sessionManager.markCrisisInterrupted(sessionId);
+      // Phase 4 (A7) — attach branch metadata when the pedagogical UX is enabled.
+      // When the flag is off, `crisisMeta` is undefined and the client falls back
+      // to the legacy single-button CrisisOverlay path.
       return {
         reply: crisisReply,
         safe: false,
@@ -149,6 +189,7 @@ export const coachTurn = onCall(
         estadoMatriz: null,
         timerState: null,
         latenciaMs: null,
+        ...(runtimeConfig.crisisBranchingEnabled ? { crisisMeta: CRISIS_META_v0 } : {}),
       };
     }
 
@@ -319,6 +360,7 @@ export const coachTurn = onCall(
           estadoMatriz: currentMatrix,
           timerState: computeTimerState(sesionIniciadaEn, cronometroAnulado),
           latenciaMs,
+          ...(runtimeConfig.crisisBranchingEnabled ? { crisisMeta: CRISIS_META_v0 } : {}),
         };
       }
       frameBreakHandled = true;
@@ -389,4 +431,94 @@ export const timerOverride = onCall(
     await overrideTimer(parsed.data.sessionId, parsed.data.anular);
     return { success: true, cronometroAnulado: parsed.data.anular };
   }
+);
+
+// ── Phase 4 (A7) — crisis pedagogical branch ──────────────────────────────
+// After the safety pipeline flags AND crisisBranchingEnabled is on, the client
+// shows the user two branch buttons. The button click hits this callable.
+//
+// - `crisis_exercise`: user says "this was part of the training". We record the
+//   branch, append a formative feedback message, and leave the session in the
+//   crisis_interrupted state (already set by the coachTurn crisis path). The
+//   client navigates to /report.
+// - `crisis_flagged_real`: user says "this is really happening to me". We
+//   record the branch. The client keeps the existing REAL_DISTRESS resources
+//   template visible (already surfaced by the coachTurn crisis path). No
+//   auto-resume — the session stays crisis_interrupted.
+//
+// NEVER edits packages/functions/src/safety/. Reads safety signals downstream
+// via the session doc state; never re-runs detection.
+
+import {
+  CRISIS_BRANCH_PROMPT_TEXT,
+  CRISIS_BRANCH_EXERCISE_FEEDBACK,
+} from "./crisisBranchContent.js";
+import { CrisisBranchIdSchema } from "@salvador/shared";
+
+const CrisisBranchRequestSchema = z.object({
+  sessionId: z.string(),
+  branch: CrisisBranchIdSchema,
+  // Reserved for a future free-text field on the overlay. Not surfaced today.
+  freeText: z.string().max(500).optional(),
+});
+
+export const crisisBranch = onCall(
+  { region: "southamerica-west1", invoker: "public" },
+  async (request: CallableRequest) => {
+    const userId = request.auth?.uid;
+    if (userId === undefined) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
+
+    const parsed = CrisisBranchRequestSchema.safeParse(request.data);
+    if (!parsed.success) {
+      throw new HttpsError("invalid-argument", "Invalid request data");
+    }
+    const { sessionId, branch } = parsed.data;
+
+    // Confirm the caller owns the session before writing.
+    const sessionRef = db.collection("sessions").doc(sessionId);
+    const snap = await sessionRef.get();
+    if (!snap.exists) {
+      throw new HttpsError("not-found", "Session not found");
+    }
+    const sessionData = snap.data() as { userId?: string; state?: string; turnCount?: number };
+    if (sessionData.userId !== userId) {
+      throw new HttpsError("permission-denied", "Not your session");
+    }
+    // Only meaningful after a crisis event. If the session isn't in the crisis
+    // state, refuse rather than corrupt normal sessions.
+    if (sessionData.state !== "crisis_interrupted") {
+      throw new HttpsError(
+        "failed-precondition",
+        "Crisis branch only available in crisis_interrupted state",
+      );
+    }
+
+    const sessionManager = createSessionManager();
+    const nextTurnNumber = (sessionData.turnCount ?? 0) + 1;
+
+    // Record the branch on the session doc. Persist even if the follow-up
+    // append fails — the branch signal itself is durable and analytics-critical.
+    await sessionRef.update({ crisisBranch: branch });
+
+    // For crisis_exercise, append the formative feedback so it appears in the
+    // /report render. For crisis_flagged_real, the resources template was
+    // already appended by coachTurn — nothing to add here.
+    if (branch === "crisis_exercise") {
+      await sessionManager.appendMessage({
+        sessionId,
+        role: "assistant",
+        content: CRISIS_BRANCH_EXERCISE_FEEDBACK,
+        turnNumber: nextTurnNumber,
+        promptVersion: COACH_PROMPT_VERSION,
+      });
+    }
+
+    return {
+      branch,
+      promptText: CRISIS_BRANCH_PROMPT_TEXT,
+      feedbackText: branch === "crisis_exercise" ? CRISIS_BRANCH_EXERCISE_FEEDBACK : null,
+    };
+  },
 );

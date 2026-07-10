@@ -1,7 +1,15 @@
 import { useState, useCallback, useRef } from "react";
-import type { ConversationTurn, Scenario, EstadoMatriz, TimerState, SimulationMode } from "@salvador/shared";
+import type {
+  ConversationTurn,
+  Scenario,
+  EstadoMatriz,
+  TimerState,
+  SimulationMode,
+  CrisisMeta,
+  CrisisBranchId,
+} from "@salvador/shared";
 import { INITIAL_MATRIX } from "@salvador/shared";
-import { callCoachTurn } from "../lib/functions.js";
+import { callCoachTurn, callCrisisBranch } from "../lib/functions.js";
 
 interface LocalMessage {
   role: "user" | "assistant";
@@ -14,11 +22,22 @@ interface EmotionalState {
   trustInHelp: number;
 }
 
+export interface RateLimitInfo {
+  retryAfterMs: number;
+  at: number; // Date.now() when the limit was hit — used by consumers to auto-dismiss.
+}
+
+export interface CrisisBranchOutcome {
+  branch: CrisisBranchId;
+  feedbackText: string | null;
+}
+
 export function useCoachSession(
   sessionId: string,
   scenario: Scenario,
   completedTagIds: string[],
   modo: SimulationMode = "escenario",
+  cohortCode: string | null = null,
 ): {
   messages: LocalMessage[];
   send: (content: string) => Promise<void>;
@@ -29,6 +48,11 @@ export function useCoachSession(
   timerState: TimerState | null;
   timerExpired: boolean;
   latenciaMs: { personaje: number; evaluador: number; total: number } | null;
+  rateLimit: RateLimitInfo | null;
+  clearRateLimit: () => void;
+  crisisMeta: CrisisMeta | null;
+  crisisBranchOutcome: CrisisBranchOutcome | null;
+  chooseCrisisBranch: (branch: CrisisBranchId) => Promise<void>;
 } {
   const allTagIds = scenario.requiredTags.map((t) => t.tagId);
 
@@ -57,6 +81,9 @@ export function useCoachSession(
   const [timerState, setTimerState] = useState<TimerState | null>(null);
   const [timerExpired, setTimerExpired] = useState(false);
   const [latenciaMs, setLatenciaMs] = useState<{ personaje: number; evaluador: number; total: number } | null>(null);
+  const [rateLimit, setRateLimit] = useState<RateLimitInfo | null>(null);
+  const [crisisMeta, setCrisisMeta] = useState<CrisisMeta | null>(null);
+  const [crisisBranchOutcome, setCrisisBranchOutcome] = useState<CrisisBranchOutcome | null>(null);
 
   // Refs for values that change frequently — avoids stale closures in send callback
   const completedTagIdsRef = useRef(completedTagIds);
@@ -93,9 +120,23 @@ export function useCoachSession(
         emotionalState: initialEmotionalState,
         pendingTagIds: currentPendingTagIds,
         modo,
+        cohortCode,
       });
 
       const data = result.data;
+
+      // Rate limited — rollback the optimistic user message and surface a
+      // toast. Do NOT advance turnNumber or history. The token bucket refills
+      // in retryAfterMs; the user can just retry after that.
+      if (data.rateLimited === true) {
+        setMessages((prev) => prev.filter((m) => m !== userMsg));
+        setRateLimit({
+          retryAfterMs: typeof data.retryAfterMs === "number" ? data.retryAfterMs : 5000,
+          at: Date.now(),
+        });
+        setIsLoading(false);
+        return;
+      }
 
       // Update server-authoritative state
       if (data.estadoMatriz !== null) setEstadoMatriz(data.estadoMatriz);
@@ -119,6 +160,9 @@ export function useCoachSession(
 
       if (!data.safe) {
         setCrisisTemplate(data.reply);
+        // Phase 4 (A7) — when the server ships crisisMeta, the overlay renders
+        // the branch UX. Absent → legacy single-button overlay.
+        if (data.crisisMeta !== undefined) setCrisisMeta(data.crisisMeta);
         setHistory((prev) => [...prev, userTurn]);
         setTurnNumber((n) => n + 1);
       } else {
@@ -140,7 +184,23 @@ export function useCoachSession(
     }
   }, [sessionId, scenario.id, modo]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const clearCrisis = useCallback(() => setCrisisTemplate(null), []);
+  const clearCrisis = useCallback(() => {
+    setCrisisTemplate(null);
+    setCrisisMeta(null);
+    setCrisisBranchOutcome(null);
+  }, []);
+  const clearRateLimit = useCallback(() => setRateLimit(null), []);
+
+  const chooseCrisisBranch = useCallback(async (branch: CrisisBranchId) => {
+    try {
+      const result = await callCrisisBranch({ sessionId, branch });
+      const data = result.data;
+      setCrisisBranchOutcome({ branch: data.branch, feedbackText: data.feedbackText });
+    } catch (err) {
+      console.error("[CRISIS_BRANCH] Failed to record branch", err);
+      // Fall through: leave overlay in the prompt state so the user can retry.
+    }
+  }, [sessionId]);
 
   return {
     messages,
@@ -152,5 +212,10 @@ export function useCoachSession(
     timerState,
     timerExpired,
     latenciaMs,
+    rateLimit,
+    clearRateLimit,
+    crisisMeta,
+    crisisBranchOutcome,
+    chooseCrisisBranch,
   };
 }

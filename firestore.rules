@@ -7,6 +7,13 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Runtime config (Phase 2). Read by client for feature flags; writes only
+    // via Firebase Console / admin scripts. Contains no user data.
+    match /config/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     // Tag progress: authenticated reads (sessionIds are UUIDs, not guessable).
     // Write is backend-only (firebase-admin bypasses rules).
     match /tag_progress/{docId} {
@@ -44,6 +51,15 @@ service cloud.firestore {
       allow update: if request.auth != null
         && request.auth.uid == uid
         && request.resource.data.role == resource.data.role;
+    }
+
+    // Analytics rollups (Phase 6). Provisional access model — any authenticated
+    // user can read (obscurity is the only URL protection). Data is aggregated
+    // and non-personal by design. Tighten to admin-only when ready.
+    // Writes are backend-only via the daily scheduler and the backfill script.
+    match /analytics_rollups/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
     }
 
     // Lab sessions (dev-only tool): admin users only.

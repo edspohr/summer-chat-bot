@@ -10,6 +10,7 @@ export interface SessionManagerService {
     scenarioId: string;
     mode: "mentor" | "coach";
     promptVersion: string;
+    cohortCode?: string | null;
   }): Promise<void>;
 
   getSession(sessionId: string): Promise<Session | null>;
@@ -33,13 +34,17 @@ export interface SessionManagerService {
   markCrisisInterrupted(sessionId: string): Promise<void>;
 
   canResume(sessionId: string): Promise<{ canResume: boolean; reason: string }>;
+
+  // Phase 3 — updates lastUserActivityAt and resets nudgeState to 'none'.
+  // Called on every user turn so the inactivity scheduler restarts its window.
+  updateLastUserActivity(sessionId: string): Promise<void>;
 }
 
 export function createSessionManager(): SessionManagerService {
   const sessions = db.collection("sessions");
 
   return {
-    async createSession({ sessionId, userId, scenarioId, mode, promptVersion }) {
+    async createSession({ sessionId, userId, scenarioId, mode, promptVersion, cohortCode }) {
       const docRef = sessions.doc(sessionId);
       const snap = await docRef.get();
       if (snap.exists) return;
@@ -52,6 +57,13 @@ export function createSessionManager(): SessionManagerService {
         turnCount: 0,
         startedAt: FieldValue.serverTimestamp(),
         lastActivityAt: FieldValue.serverTimestamp(),
+        // Phase 2 fields — inert until later phases consume them.
+        cohortCode: cohortCode ?? null,
+        endedAt: null,
+        endedReason: null,
+        lastUserActivityAt: null,
+        nudgeState: "none",
+        crisisBranch: null,
       });
     },
 
@@ -117,14 +129,24 @@ export function createSessionManager(): SessionManagerService {
     },
 
     async completeSession(sessionId) {
+      const now = FieldValue.serverTimestamp();
       await sessions.doc(sessionId).update({
-        state: "completed",
-        completedAt: FieldValue.serverTimestamp(),
+        state: "closed_completed",
+        completedAt: now,
+        endedAt: now,
+        endedReason: "user_ended",
       });
     },
 
     async markCrisisInterrupted(sessionId) {
       await sessions.doc(sessionId).update({ state: "crisis_interrupted" });
+    },
+
+    async updateLastUserActivity(sessionId) {
+      await sessions.doc(sessionId).update({
+        lastUserActivityAt: FieldValue.serverTimestamp(),
+        nudgeState: "none",
+      });
     },
 
     async canResume(sessionId) {
@@ -139,7 +161,12 @@ export function createSessionManager(): SessionManagerService {
           reason: "Session was crisis-interrupted. Explicit confirmation required before resuming.",
         };
       }
-      if (state === "completed" || state === "abandoned") {
+      if (
+        state === "completed" ||
+        state === "closed_completed" ||
+        state === "closed_inactivity" ||
+        state === "abandoned"
+      ) {
         return { canResume: false, reason: `Session is ${state}` };
       }
       return { canResume: true, reason: "Session is active" };

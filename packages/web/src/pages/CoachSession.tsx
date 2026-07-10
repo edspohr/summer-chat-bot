@@ -9,14 +9,16 @@ import { ChatBubble } from "../components/ChatBubble.js";
 import { TagProgress } from "../components/TagProgress.js";
 import { CrisisOverlay } from "../components/CrisisOverlay.js";
 import { EmotionalMatrix } from "../components/EmotionalMatrix.js";
+import { readCohort } from "../lib/cohort.js";
 import type { Scenario } from "@salvador/shared";
 
 // ── Warning text ───────────────────────────────────────────────────────────
+// The 10-min mark was intentionally removed — trainees found the "cerrar con
+// un compromiso" suggestion pushed them out of the conversation too early.
+// The 5-min "puedes ir al informe" and the 15-min reminder stay.
 const TIMER_WARNINGS = {
   "5min":
     "Ya llevas 5 minutos. Cuando sientas que la conversación está en un buen punto, puedes ir al informe.",
-  "10min":
-    "10 minutos. Es un buen momento para ir cerrando con un compromiso concreto con Martina.",
   "15min":
     "15 minutos de conversación. Cuando estés listo/a, presiona 'Ir al informe' para ver tu desempeño.",
 } as const;
@@ -59,6 +61,37 @@ function TimerWarningToast({ message, onDismiss }: { message: string; onDismiss:
         <button
           onClick={onDismiss}
           className="ml-auto text-amber-400 hover:text-amber-600 flex-shrink-0 text-lg leading-none"
+          aria-label="Cerrar aviso"
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Rate limit toast ───────────────────────────────────────────────────────
+
+function RateLimitToast({ retryAfterMs, onDismiss }: { retryAfterMs: number; onDismiss: () => void }) {
+  useEffect(() => {
+    const id = setTimeout(onDismiss, Math.max(retryAfterMs, 3000) + 500);
+    return () => clearTimeout(id);
+  }, [retryAfterMs, onDismiss]);
+
+  const seconds = Math.max(1, Math.ceil(retryAfterMs / 1000));
+  const message =
+    seconds <= 1
+      ? "Estás enviando mensajes muy rápido. Intenta de nuevo en un segundo."
+      : `Estás enviando mensajes muy rápido. Intenta de nuevo en ${seconds} segundos.`;
+
+  return (
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-sm w-full mx-4">
+      <div className="bg-stone-800 text-white rounded-2xl px-4 py-3 shadow-lg flex items-start gap-3">
+        <span className="mt-0.5 flex-shrink-0">⏳</span>
+        <p className="font-secondary text-sm leading-relaxed">{message}</p>
+        <button
+          onClick={onDismiss}
+          className="ml-auto text-stone-400 hover:text-white flex-shrink-0 text-lg leading-none"
           aria-label="Cerrar aviso"
         >
           ×
@@ -128,8 +161,26 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
   const tagProgressItems = useTagProgress(sessionId, allTagIds);
   const completedTagIds = tagProgressItems.filter((t) => t.completed).map((t) => t.tagId);
 
-  const { messages, send, isLoading, crisisTemplate, clearCrisis, estadoMatriz, timerState, timerExpired, latenciaMs } =
-    useCoachSession(sessionId, scenario, completedTagIds, "escenario");
+  // Cohort code was captured on the entry route (MartinaDemo) into sessionStorage.
+  // Read it once — it's stable for the lifetime of the session.
+  const cohortCodeRef = useRef<string | null>(readCohort());
+
+  const {
+    messages,
+    send,
+    isLoading,
+    crisisTemplate,
+    clearCrisis,
+    estadoMatriz,
+    timerState,
+    timerExpired,
+    latenciaMs,
+    rateLimit,
+    clearRateLimit,
+    crisisMeta,
+    crisisBranchOutcome,
+    chooseCrisisBranch,
+  } = useCoachSession(sessionId, scenario, completedTagIds, "escenario", cohortCodeRef.current);
 
   const [input, setInput] = useState("");
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
@@ -185,7 +236,7 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
     prevMatrixRef.current = estadoMatriz;
   }, [estadoMatriz]);
 
-  const handleWarning = useCallback((at: "5min" | "10min" | "15min") => {
+  const handleWarning = useCallback((at: "5min" | "15min") => {
     setWarningMessage(TIMER_WARNINGS[at]);
   }, []);
 
@@ -228,11 +279,23 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
   return (
     <main className="h-screen flex flex-col bg-warm-bg max-w-2xl mx-auto overflow-hidden">
       {crisisTemplate !== null && (
-        <CrisisOverlay template={crisisTemplate} onConfirmResume={clearCrisis} canResume={true} />
+        <CrisisOverlay
+          template={crisisTemplate}
+          onConfirmResume={clearCrisis}
+          canResume={true}
+          crisisMeta={crisisMeta}
+          onChooseBranch={chooseCrisisBranch}
+          branchOutcome={crisisBranchOutcome}
+          onGoToReport={goToReport}
+        />
       )}
 
       {warningMessage !== null && (
         <TimerWarningToast message={warningMessage} onDismiss={() => setWarningMessage(null)} />
+      )}
+
+      {rateLimit !== null && (
+        <RateLimitToast retryAfterMs={rateLimit.retryAfterMs} onDismiss={clearRateLimit} />
       )}
 
       <header className="px-4 py-4 border-b border-stone-100 bg-white space-y-3 shadow-sm z-10 relative">
@@ -249,6 +312,7 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
                 src={scenario.persona.avatarUrl}
                 alt={scenario.persona.name}
                 className="w-full h-full object-cover"
+                style={{ objectPosition: "50% 30%", transform: "scale(1.7)", transformOrigin: "50% 32%" }}
               />
             ) : (
               <span className="text-summer-peach font-bold text-2xl">
@@ -269,14 +333,39 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
         <TagProgress items={tagProgressItems} />
       </header>
 
+      {/* A3 — Compact matrix bars on mobile.
+          Sits between header and chat, always visible above the scroll area
+          because the chat container below scrolls internally. Hidden on sm+
+          because the desktop aside already shows the full matrix. */}
+      {estadoMatriz !== null && (
+        <div className="sm:hidden bg-white border-b border-stone-100 shadow-sm z-10">
+          <EmotionalMatrix
+            estado={estadoMatriz}
+            changedVars={changedVars}
+            deltaSign={deltaSign}
+            variant="compact"
+          />
+        </div>
+      )}
+
       <div className="flex flex-1 min-h-0">
         {/* Chat area */}
         <div className="flex flex-col flex-1 min-w-0">
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
             <ContextBanner scenario={scenario} />
-            {messages.map((m, i) => (
-              <ChatBubble key={i} role={m.role} content={m.content} />
-            ))}
+            {messages.map((m, i) => {
+              const assistantAvatar =
+                m.role === "assistant" ? scenario.persona.avatarUrl : undefined;
+              return (
+                <ChatBubble
+                  key={i}
+                  role={m.role}
+                  content={m.content}
+                  {...(assistantAvatar !== undefined ? { avatarUrl: assistantAvatar } : {})}
+                  speakerName={scenario.persona.name}
+                />
+              );
+            })}
             {isLoading && (
               <div className="flex justify-start mb-3">
                 <div className="bg-white border border-stone-200 rounded-2xl px-4 py-2 text-sm text-stone-400">

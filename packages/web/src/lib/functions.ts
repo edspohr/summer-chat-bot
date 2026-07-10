@@ -9,6 +9,8 @@ import type {
   EstadoMatriz,
   TimerState,
   SimulationMode,
+  CrisisMeta,
+  CrisisBranchId,
 } from "@salvador/shared";
 
 function getCallable<TReq, TRes>(name: string) {
@@ -39,6 +41,9 @@ export interface CoachTurnRequest {
   emotionalState: { emotionalIntensity: number; openness: number; trustInHelp: number };
   pendingTagIds: string[];
   modo?: SimulationMode;
+  // Optional cohort/workshop code captured from the entry URL (?c=...).
+  // Persisted to the session doc on first turn — non-personal grouping key.
+  cohortCode?: string | null;
 }
 
 export interface CoachTurnResponse {
@@ -51,6 +56,25 @@ export interface CoachTurnResponse {
   timerState: TimerState | null;
   timerExpired?: boolean;
   latenciaMs: { personaje: number; evaluador: number; total: number } | null;
+  // Phase 3 — populated when the server-side token bucket rejected this turn.
+  // Client should show a friendly toast and not append any assistant reply.
+  rateLimited?: boolean;
+  retryAfterMs?: number;
+  // Phase 4 (A7) — present when safety flagged AND crisisBranchingEnabled is on.
+  // Absent → CrisisOverlay uses the legacy single-button flow.
+  crisisMeta?: CrisisMeta;
+}
+
+export interface CrisisBranchRequest {
+  sessionId: string;
+  branch: CrisisBranchId;
+  freeText?: string;
+}
+
+export interface CrisisBranchResponse {
+  branch: CrisisBranchId;
+  promptText: string;
+  feedbackText: string | null;
 }
 
 export interface TimerOverrideRequest {
@@ -66,6 +90,7 @@ export interface TimerOverrideResponse {
 export const callMentorChat = getCallable<MentorChatRequest, MentorChatResponse>("mentorChat");
 export const callCoachTurn = getCallable<CoachTurnRequest, CoachTurnResponse>("coachTurn");
 export const callTimerOverride = getCallable<TimerOverrideRequest, TimerOverrideResponse>("timerOverride");
+export const callCrisisBranch = getCallable<CrisisBranchRequest, CrisisBranchResponse>("crisisBranch");
 
 // ── Latency Lab (dev-only) ─────────────────────────────────────────────────
 

@@ -29,6 +29,22 @@
           }
         }
       ]
+    },
+    {
+      "collectionGroup": "sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "state", "order": "ASCENDING" },
+        { "fieldPath": "lastUserActivityAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "tag_progress",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sessionId", "order": "ASCENDING" },
+        { "fieldPath": "completed", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
