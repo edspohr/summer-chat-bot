@@ -5,6 +5,7 @@ import { VERTEX_PROJECT, VERTEX_REGION, GEMINI_MODEL } from "../config/vertex.js
 import { loadPrompt } from "../prompts/loader.js";
 import type { TagDefinition } from "@salvador/shared";
 import { MATRIX_EVALUATOR_ADDENDUM } from "./matrixConstants.js";
+import { retryOnQuota } from "./vertexRetry.js";
 
 function formatPendingTags(tags: TagDefinition[]): string {
   if (tags.length === 0) return "(No hay tags pendientes en este turno)";
@@ -66,7 +67,7 @@ export async function runCallB(
     },
   });
 
-  const result = await model.generateContent(prompt);
+  const result = await retryOnQuota(() => model.generateContent(prompt), { label: "callB" });
   const parts = result.response.candidates?.[0]?.content?.parts ?? [];
   let rawJson = "";
   for (const part of parts) {

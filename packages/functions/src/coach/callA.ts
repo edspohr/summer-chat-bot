@@ -3,6 +3,7 @@ import type { CoachCallAInput } from "@salvador/shared";
 import { VERTEX_PROJECT, VERTEX_REGION, GEMINI_MODEL } from "../config/vertex.js";
 import { loadPrompt } from "../prompts/loader.js";
 import { stripFrameBreakTag } from "./streamHandler.js";
+import { retryOnQuota } from "./vertexRetry.js";
 
 export interface CallAResult {
   content: string;
@@ -105,8 +106,13 @@ export async function runCallA(
     generationConfig: { temperature: 0.85, topP: 0.95, maxOutputTokens: 600 },
   });
 
-  const streamResult = await model.generateContentStream(input.traineeMessage);
-  const rawContent = await collectStream(streamResult.stream);
+  const rawContent = await retryOnQuota(
+    async () => {
+      const streamResult = await model.generateContentStream(input.traineeMessage);
+      return collectStream(streamResult.stream);
+    },
+    { label: "callA" },
+  );
 
   const latencyMs = Date.now() - callStart;
   const stripped = stripFrameBreakTag(rawContent);
