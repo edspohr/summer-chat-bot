@@ -1,6 +1,6 @@
 # Technical Debt Register
 
-_Last updated: 2026-06-17 (0017, 0018 added — formative workshop build)_
+_Last updated: 2026-08-12 (0019 added — Call B moved to gemini-2.5-flash-lite)_
 
 | ID | Title | Severity | Status |
 |---|---|---|---|
@@ -22,6 +22,7 @@ _Last updated: 2026-06-17 (0017, 0018 added — formative workshop build)_
 | [0016](0016-lab-matrix-no-turn-persistence.md) | Lab matrix state not persisted to turns subcollection (session doc only) | low | open |
 | [0017](0017-callb-fire-and-forget.md) | Call B fire-and-forget — matrix bars lag one turn; turn evaluation lost on container GC | medium | open |
 | [0018](0018-martina-formative-workshop-2026-06-17.md) | Formative workshop build shortcuts — anon auth, prompt sync, clinical validation gap | medium | open |
+| [0019](0019-callb-model-split.md) | Call B uses `gemini-2.5-flash-lite` — model-split invariant break | low | open |
 
 > **Debt 0003 is the highest urgency**: Layer 3 regex patterns are the first line of defense
 > for real crisis detection. Without clinical validation, there is risk of false negatives

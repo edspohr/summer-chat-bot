@@ -1,7 +1,7 @@
 import { VertexAI } from "@google-cloud/vertexai";
 import type { CoachCallBInput, EvaluatorRawOutput } from "@salvador/shared";
 import { EvaluatorRawOutputSchema } from "@salvador/shared";
-import { VERTEX_PROJECT, VERTEX_REGION, GEMINI_MODEL } from "../config/vertex.js";
+import { VERTEX_PROJECT, VERTEX_REGION, CALLB_MODEL } from "../config/vertex.js";
 import { loadPrompt } from "../prompts/loader.js";
 import type { TagDefinition } from "@salvador/shared";
 import { MATRIX_EVALUATOR_ADDENDUM } from "./matrixConstants.js";
@@ -45,6 +45,21 @@ function buildPrompt(input: CoachCallBInput, template: string, includeMatrix: bo
 
 const EMPTY_OUTPUT: EvaluatorRawOutput = { evaluated_tags: [] };
 
+// flash-lite occasionally wraps JSON in ```json fences or emits prose before/after
+// the object. Strip fences and slice to the outermost {...} before JSON.parse.
+function extractJsonObject(raw: string): string {
+  let s = raw.trim();
+  if (s.startsWith("```")) {
+    s = s.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
+  }
+  const first = s.indexOf("{");
+  const last = s.lastIndexOf("}");
+  if (first !== -1 && last > first) {
+    return s.slice(first, last + 1);
+  }
+  return s;
+}
+
 export async function runCallB(
   input: CoachCallBInput,
   includeMatrix = false,
@@ -59,7 +74,7 @@ export async function runCallB(
   // 4096 tokens when evaluating tags+matrix (8 tags * ~400 tokens each + matrix delta).
   // 256 tokens when matrix-only (no tags to evaluate).
   const model = vertexAI.getGenerativeModel({
-    model: GEMINI_MODEL,
+    model: CALLB_MODEL,
     generationConfig: {
       temperature: 0.2,
       maxOutputTokens: includeMatrix ? 4096 : 256,
@@ -76,9 +91,11 @@ export async function runCallB(
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(rawJson);
+    parsed = JSON.parse(extractJsonObject(rawJson));
   } catch {
-    console.error("[CALL B] Failed to parse JSON response:", rawJson.slice(0, 200));
+    console.warn(
+      `[CALLB] JSON parse failed, turn skipped — raw: ${rawJson.slice(0, 500)}`,
+    );
     return EMPTY_OUTPUT;
   }
 
