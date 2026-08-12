@@ -64,20 +64,57 @@ function buildPurePromptInstruction(
     .replace("[TRAINEE_MESSAGE]", traineeMessage);
 }
 
+interface StreamChunk {
+  candidates?: Array<{
+    content?: { parts?: Array<{ text?: string }> };
+    finishReason?: string;
+  }>;
+  usageMetadata?: {
+    candidatesTokenCount?: number;
+    totalTokenCount?: number;
+  };
+}
+
+interface StreamUsage {
+  candidatesTokenCount: number | undefined;
+  totalTokenCount: number | undefined;
+}
+
+interface StreamResult {
+  text: string;
+  finishReason: string | undefined;
+  usage: StreamUsage;
+}
+
 // Collects all streaming chunks into a single string.
 // Using streaming here preserves the future path to true SSE delivery.
-async function collectStream(
-  stream: AsyncGenerator<{ candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }>
-): Promise<string> {
+// Also captures the terminal finishReason and usageMetadata so we can tell
+// truncated (MAX_TOKENS) or aborted (undefined) streams apart from normal STOP.
+async function collectStream(stream: AsyncGenerator<StreamChunk>): Promise<StreamResult> {
   let text = "";
+  let finishReason: string | undefined;
+  const usage: StreamUsage = { candidatesTokenCount: undefined, totalTokenCount: undefined };
   for await (const chunk of stream) {
-    const parts = chunk.candidates?.[0]?.content?.parts;
-    if (parts === undefined) continue;
-    for (const part of parts) {
-      if (typeof part.text === "string") text += part.text;
+    const candidate = chunk.candidates?.[0];
+    const parts = candidate?.content?.parts;
+    if (parts !== undefined) {
+      for (const part of parts) {
+        if (typeof part.text === "string") text += part.text;
+      }
+    }
+    if (typeof candidate?.finishReason === "string") {
+      finishReason = candidate.finishReason;
+    }
+    if (chunk.usageMetadata !== undefined) {
+      if (typeof chunk.usageMetadata.candidatesTokenCount === "number") {
+        usage.candidatesTokenCount = chunk.usageMetadata.candidatesTokenCount;
+      }
+      if (typeof chunk.usageMetadata.totalTokenCount === "number") {
+        usage.totalTokenCount = chunk.usageMetadata.totalTokenCount;
+      }
     }
   }
-  return text;
+  return { text, finishReason, usage };
 }
 
 export async function runCallA(
@@ -106,7 +143,7 @@ export async function runCallA(
     generationConfig: { temperature: 0.85, topP: 0.95, maxOutputTokens: 600 },
   });
 
-  const rawContent = await retryOnQuota(
+  const streamed = await retryOnQuota(
     async () => {
       const streamResult = await model.generateContentStream(input.traineeMessage);
       return collectStream(streamResult.stream);
@@ -115,7 +152,20 @@ export async function runCallA(
   );
 
   const latencyMs = Date.now() - callStart;
-  const stripped = stripFrameBreakTag(rawContent);
+
+  // Stream finish diagnostics — MAX_TOKENS means Martina was truncated;
+  // undefined/absent finishReason means the stream died mid-flight (DSQ abort
+  // is the current suspect). STOP is the only clean terminator.
+  const finishReason = streamed.finishReason ?? "NONE";
+  const candidatesTokens = streamed.usage.candidatesTokenCount ?? "unknown";
+  const line = `[CALLA] finishReason=${finishReason} candidatesTokens=${candidatesTokens} latencyMs=${latencyMs}`;
+  if (streamed.finishReason === "STOP") {
+    console.log(line);
+  } else {
+    console.warn(line);
+  }
+
+  const stripped = stripFrameBreakTag(streamed.text);
 
   return { ...stripped, latencyMs };
 }
