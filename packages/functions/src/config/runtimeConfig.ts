@@ -21,6 +21,12 @@ export interface RuntimeConfig {
   rateLimitEnabled: boolean;
   /** Master switch for the Phase 4 crisis mentor branching UX. */
   crisisBranchingEnabled: boolean;
+  /**
+   * Fire Call B only every N-th turn. 1 = every turn (default).
+   * Set to 2 during heavy workshops to halve Vertex DSQ pressure.
+   * Turn 0 always evaluates.
+   */
+  evaluatorEveryNTurns: number;
 }
 
 const DEFAULTS: RuntimeConfig = {
@@ -30,6 +36,7 @@ const DEFAULTS: RuntimeConfig = {
   inactivityEnabled: false,
   rateLimitEnabled: false,
   crisisBranchingEnabled: false,
+  evaluatorEveryNTurns: 1,
 };
 
 const TTL_MS = 30_000;
@@ -47,6 +54,11 @@ function coerce(raw: unknown): RuntimeConfig {
     if (typeof v === type) return v as RuntimeConfig[K];
     return DEFAULTS[k];
   };
+  const rawEvery = raw["evaluatorEveryNTurns"];
+  const evaluatorEveryNTurns =
+    typeof rawEvery === "number" && Number.isInteger(rawEvery) && rawEvery >= 1
+      ? rawEvery
+      : DEFAULTS.evaluatorEveryNTurns;
   return {
     rpm: get("rpm", "number"),
     inactivityNudgeMs: get("inactivityNudgeMs", "number"),
@@ -54,6 +66,7 @@ function coerce(raw: unknown): RuntimeConfig {
     inactivityEnabled: get("inactivityEnabled", "boolean"),
     rateLimitEnabled: get("rateLimitEnabled", "boolean"),
     crisisBranchingEnabled: get("crisisBranchingEnabled", "boolean"),
+    evaluatorEveryNTurns,
   };
 }
 

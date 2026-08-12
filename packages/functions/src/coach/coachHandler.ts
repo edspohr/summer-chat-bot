@@ -269,46 +269,57 @@ export const coachTurn = onCall(
     const callALatency = callAResult.latencyMs;
 
     // Fire Call B without awaiting — updates Firestore in background.
-    const callBStart = Date.now();
-    const callBPromise = (
-      modo === "escenario"
-        ? runCallB(callBInput, true)
-        : runCallB(callBInput, false)
-    ).then(async (callBResult) => {
-      const callBLatency = Date.now() - callBStart;
-      const latenciaMs = {
-        personaje: callALatency,
-        evaluador: callBLatency,
-        total: Date.now() - turnStart,
-      };
-      console.log(`[COACH] Turn ${turnNumber} latency — personaje: ${latenciaMs.personaje}ms, evaluador: ${latenciaMs.evaluador}ms, total: ${latenciaMs.total}ms`);
+    // Sampling gate (evaluatorEveryNTurns): under DSQ pressure the operator can
+    // flip config/runtime.evaluatorEveryNTurns=2 to halve evaluator load.
+    // Turn 0 always evaluates. Skipped turns add one more turn of matrix/tag
+    // lag on top of the fire-and-forget lag already documented in debt-0017.
+    const evaluatorEveryN = runtimeConfig.evaluatorEveryNTurns;
+    const evaluatorShouldRun = turnNumber % evaluatorEveryN === 0;
 
-      if (modo === "escenario" && currentMatrix !== null && callBResult.matrixDelta !== undefined) {
-        const newMatrix = applyMatrixDelta(currentMatrix, callBResult.matrixDelta);
-        const turnoId = randomUUID();
-        await persistMatrixUpdate({
+    if (!evaluatorShouldRun) {
+      console.log(`[COACH] Turn ${turnNumber} evaluator skipped (sampling 1/${evaluatorEveryN})`);
+    } else {
+      const callBStart = Date.now();
+      const callBPromise = (
+        modo === "escenario"
+          ? runCallB(callBInput, true)
+          : runCallB(callBInput, false)
+      ).then(async (callBResult) => {
+        const callBLatency = Date.now() - callBStart;
+        const latenciaMs = {
+          personaje: callALatency,
+          evaluador: callBLatency,
+          total: Date.now() - turnStart,
+        };
+        console.log(`[COACH] Turn ${turnNumber} latency — personaje: ${latenciaMs.personaje}ms, evaluador: ${latenciaMs.evaluador}ms, total: ${latenciaMs.total}ms`);
+
+        if (modo === "escenario" && currentMatrix !== null && callBResult.matrixDelta !== undefined) {
+          const newMatrix = applyMatrixDelta(currentMatrix, callBResult.matrixDelta);
+          const turnoId = randomUUID();
+          await persistMatrixUpdate({
+            sessionId,
+            turnoId,
+            newState: newMatrix,
+            delta: callBResult.matrixDelta,
+            latency: latenciaMs,
+            rol: "usuario",
+            contenido: traineeMessage,
+          });
+        }
+
+        await accumulateTags({
           sessionId,
-          turnoId,
-          newState: newMatrix,
-          delta: callBResult.matrixDelta,
-          latency: latenciaMs,
-          rol: "usuario",
-          contenido: traineeMessage,
+          evaluatorOutput: callBResult,
+          pendingTags: tagDefinitions,
+          turnNumber,
         });
-      }
-
-      await accumulateTags({
-        sessionId,
-        evaluatorOutput: callBResult,
-        pendingTags: tagDefinitions,
-        turnNumber,
+      }).catch((err: unknown) => {
+        console.error(`[COACH] Call B background error on turn ${turnNumber}:`, err);
       });
-    }).catch((err: unknown) => {
-      console.error(`[COACH] Call B background error on turn ${turnNumber}:`, err);
-    });
 
-    // Keep a reference so Cloud Functions doesn't GC the promise before it resolves.
-    void callBPromise;
+      // Keep a reference so Cloud Functions doesn't GC the promise before it resolves.
+      void callBPromise;
+    }
 
     const latenciaMs = {
       personaje: callALatency,
