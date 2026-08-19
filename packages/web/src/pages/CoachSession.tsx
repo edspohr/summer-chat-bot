@@ -289,7 +289,11 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
     const text = input.trim();
     if (!text || inputLocked) return;
     setInput("");
-    await send(text);
+    const ok = await send(text);
+    // Functional updater: `input` from closure is frozen at pre-clear value across
+    // the await. Read current state via the updater to avoid clobbering anything
+    // the trainee has already typed after their send failed.
+    if (!ok) setInput((curr) => (curr === "" ? text : curr));
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {

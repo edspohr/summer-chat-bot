@@ -42,7 +42,7 @@ export function useCoachSession(
   cohortCode: string | null = null,
 ): {
   messages: LocalMessage[];
-  send: (content: string) => Promise<void>;
+  send: (content: string) => Promise<boolean>;
   isLoading: boolean;
   crisisTemplate: string | null;
   clearCrisis: () => void;
@@ -148,8 +148,8 @@ export function useCoachSession(
     return unsub;
   }, [sessionId, sessionCreated]);
 
-  const send = useCallback(async (content: string) => {
-    if (!content.trim()) return;
+  const send = useCallback(async (content: string): Promise<boolean> => {
+    if (!content.trim()) return false;
 
     const currentHistory = historyRef.current;
     const currentTurnNumber = turnNumberRef.current;
@@ -178,13 +178,12 @@ export function useCoachSession(
 
       const data = result.data;
 
-      // First successful callable response guarantees the session doc exists.
-      // Unblocks the two onSnapshot listeners guarded by sessionCreated above.
-      if (!sessionCreated) setSessionCreated(true);
-
       // Rate limited — rollback the optimistic user message and surface a
       // toast. Do NOT advance turnNumber or history. The token bucket refills
       // in retryAfterMs; the user can just retry after that.
+      // NB: rate-limit is checked in coachHandler BEFORE session creation, so
+      // this branch must run before flipping sessionCreated — otherwise
+      // listeners attach to a nonexistent doc and detach with permission-denied.
       if (data.rateLimited === true) {
         setMessages((prev) => prev.filter((m) => m !== userMsg));
         setRateLimit({
@@ -192,8 +191,12 @@ export function useCoachSession(
           at: Date.now(),
         });
         setIsLoading(false);
-        return;
+        return false;
       }
+
+      // First successful callable response guarantees the session doc exists.
+      // Unblocks the two onSnapshot listeners guarded by sessionCreated above.
+      if (!sessionCreated) setSessionCreated(true);
 
       // Update server-authoritative state
       if (data.estadoMatriz !== null) setEstadoMatriz(data.estadoMatriz);
@@ -204,12 +207,12 @@ export function useCoachSession(
       if (data.timerExpired === true) {
         setTimerExpired(true);
         setIsLoading(false);
-        return;
+        return true;
       }
 
       if (data.reply === null) {
         setIsLoading(false);
-        return;
+        return true;
       }
 
       const assistantMsg: LocalMessage = { role: "assistant", content: data.reply };
@@ -231,12 +234,14 @@ export function useCoachSession(
         setHistory((prev) => [...prev, userTurn, assistantTurn]);
         setTurnNumber((n) => n + 2);
       }
+      return true;
     } catch (err) {
       console.error("[COACH_TURN] send failed", err);
       setMessages((prev) => [
         ...prev.filter((m) => m !== userMsg),
         { role: "assistant", content: "Ocurrió un error. Por favor intenta de nuevo." },
       ]);
+      return false;
     } finally {
       setIsLoading(false);
     }
