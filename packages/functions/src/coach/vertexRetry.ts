@@ -29,9 +29,12 @@ function isRetriable(err: unknown): boolean {
   return false;
 }
 
+// Wider base and jitter than the original 250/200 to (a) give DSQ a longer
+// window to drain without adding retry attempts (avoids retry storm), and
+// (b) desynchronize concurrent clients in a workshop burst.
 function backoffMs(attempt: number): number {
-  const base = 250 * 2 ** attempt;
-  const jitter = Math.random() * 200;
+  const base = 500 * 2 ** attempt;
+  const jitter = Math.random() * 500;
   return base + jitter;
 }
 

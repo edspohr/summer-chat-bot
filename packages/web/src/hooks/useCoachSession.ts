@@ -87,6 +87,13 @@ export function useCoachSession(
   const [crisisMeta, setCrisisMeta] = useState<CrisisMeta | null>(null);
   const [crisisBranchOutcome, setCrisisBranchOutcome] = useState<CrisisBranchOutcome | null>(null);
 
+  // Session doc is created by coachTurn on the first user turn — before that,
+  // any onSnapshot on sessions/{id} or its subcollections fails permission-denied
+  // (rules check resource.data.userId on a non-existent doc). Flip this true
+  // after the first successful callable response so the listeners subscribe only
+  // once the doc exists.
+  const [sessionCreated, setSessionCreated] = useState(false);
+
   // Refs for values that change frequently — avoids stale closures in send callback
   const completedTagIdsRef = useRef(completedTagIds);
   completedTagIdsRef.current = completedTagIds;
@@ -103,6 +110,7 @@ export function useCoachSession(
   // needing a single-field index on nested meta.isNudge.
   const surfacedNudgeIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
+    if (!sessionCreated) return;
     const q = collection(db, "sessions", sessionId, "messages");
     const unsub = onSnapshot(q, (snap) => {
       for (const change of snap.docChanges()) {
@@ -120,7 +128,7 @@ export function useCoachSession(
       }
     });
     return unsub;
-  }, [sessionId]);
+  }, [sessionId, sessionCreated]);
 
   // Realtime listener for session-level state transitions. When the inactivity
   // scheduler closes the session (state='closed_inactivity'), signal expiry so
@@ -128,6 +136,7 @@ export function useCoachSession(
   // We only watch closed_inactivity here; closed_completed already flows via
   // the coachTurn response (timerExpired flag).
   useEffect(() => {
+    if (!sessionCreated) return;
     const unsub = onSnapshot(doc(db, "sessions", sessionId), (snap) => {
       const data = snap.data();
       if (data === undefined) return;
@@ -137,7 +146,7 @@ export function useCoachSession(
       }
     });
     return unsub;
-  }, [sessionId]);
+  }, [sessionId, sessionCreated]);
 
   const send = useCallback(async (content: string) => {
     if (!content.trim()) return;
@@ -168,6 +177,10 @@ export function useCoachSession(
       });
 
       const data = result.data;
+
+      // First successful callable response guarantees the session doc exists.
+      // Unblocks the two onSnapshot listeners guarded by sessionCreated above.
+      if (!sessionCreated) setSessionCreated(true);
 
       // Rate limited — rollback the optimistic user message and surface a
       // toast. Do NOT advance turnNumber or history. The token bucket refills
@@ -218,9 +231,10 @@ export function useCoachSession(
         setHistory((prev) => [...prev, userTurn, assistantTurn]);
         setTurnNumber((n) => n + 2);
       }
-    } catch {
+    } catch (err) {
+      console.error("[COACH_TURN] send failed", err);
       setMessages((prev) => [
-        ...prev,
+        ...prev.filter((m) => m !== userMsg),
         { role: "assistant", content: "Ocurrió un error. Por favor intenta de nuevo." },
       ]);
     } finally {
