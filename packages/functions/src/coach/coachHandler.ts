@@ -9,6 +9,7 @@ import {
   type Scenario,
   type EmotionalStateVariables,
   type EstadoMatriz,
+  type SafetyClassification,
 } from "@salvador/shared";
 import { db } from "../config/firebase.js";
 import { loadRuntimeConfig } from "../config/runtimeConfig.js";
@@ -17,6 +18,7 @@ import { classifyMessage } from "../safety/llmClassifier.js";
 import { getTemplate } from "../safety/templates.js";
 import { runCallA } from "./callA.js";
 import { runCallB } from "./callB.js";
+import { retryOnQuota } from "./vertexRetry.js";
 import { accumulateTags } from "./tagAccumulator.js";
 import { applyMatrixDelta, persistMatrixUpdate, readMatrixState } from "./matrixEngine.js";
 import { INITIAL_ESTADO_MATRIZ } from "./matrixConstants.js";
@@ -83,7 +85,14 @@ function buildScenarioContextSummary(scenario: Scenario, emotionalState: Emotion
 const COACH_PROMPT_VERSION = "coach_conversational_v1";
 
 export const coachTurn = onCall(
-  { region: "southamerica-west1", invoker: "public", timeoutSeconds: 180, memory: "512MiB" },
+  {
+    region: "southamerica-west1",
+    invoker: "public",
+    timeoutSeconds: 180,
+    memory: "512MiB",
+    // Pinned via console on 2026-08-11; declared here so it survives future deploys.
+    minInstances: 1,
+  },
   async (request: CallableRequest) => {
     const userId = request.auth?.uid;
     if (userId === undefined) {
@@ -334,11 +343,24 @@ export const coachTurn = onCall(
     // Layer 2: handle frame-break detected by Call A.
     let frameBreakHandled = false;
     if (callAResult.frameBreakSuspected) {
-      const l2Result = await classifyMessage({
-        message: traineeMessage,
-        lastTurns: conversationHistory,
-        mode: "coach",
-      });
+      // Vertex 429s here previously surfaced as "Ocurrió un error" at the exact
+      // moment the system suspected distress. Per CLAUDE.md §6 asymmetry, fall
+      // back to "D" (FRAME_BREAK template) on any failure — the template is
+      // already worded safely for false positives.
+      let l2Result: SafetyClassification;
+      try {
+        l2Result = await retryOnQuota(
+          () => classifyMessage({
+            message: traineeMessage,
+            lastTurns: conversationHistory,
+            mode: "coach",
+          }),
+          { maxAttempts: 2, label: "l2FrameBreak" },
+        );
+      } catch (err) {
+        console.error("[SAFETY L2] frame-break classifier failed — conservative fallback to D", err);
+        l2Result = "D";
+      }
 
       if (l2Result === "S" || l2Result === "D") {
         const template = l2Result === "S" ? "REAL_DISTRESS" : "FRAME_BREAK";

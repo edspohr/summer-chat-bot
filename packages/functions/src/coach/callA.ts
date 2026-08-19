@@ -1,4 +1,4 @@
-import { VertexAI } from "@google-cloud/vertexai";
+import { VertexAI, type GenerationConfig } from "@google-cloud/vertexai";
 import type { CoachCallAInput } from "@salvador/shared";
 import { VERTEX_PROJECT, VERTEX_REGION, GEMINI_MODEL } from "../config/vertex.js";
 import { loadPrompt } from "../prompts/loader.js";
@@ -72,12 +72,14 @@ interface StreamChunk {
   usageMetadata?: {
     candidatesTokenCount?: number;
     totalTokenCount?: number;
+    thoughtsTokenCount?: number;
   };
 }
 
 interface StreamUsage {
   candidatesTokenCount: number | undefined;
   totalTokenCount: number | undefined;
+  thoughtsTokenCount: number | undefined;
 }
 
 interface StreamResult {
@@ -93,7 +95,11 @@ interface StreamResult {
 async function collectStream(stream: AsyncGenerator<StreamChunk>): Promise<StreamResult> {
   let text = "";
   let finishReason: string | undefined;
-  const usage: StreamUsage = { candidatesTokenCount: undefined, totalTokenCount: undefined };
+  const usage: StreamUsage = {
+    candidatesTokenCount: undefined,
+    totalTokenCount: undefined,
+    thoughtsTokenCount: undefined,
+  };
   for await (const chunk of stream) {
     const candidate = chunk.candidates?.[0];
     const parts = candidate?.content?.parts;
@@ -112,10 +118,29 @@ async function collectStream(stream: AsyncGenerator<StreamChunk>): Promise<Strea
       if (typeof chunk.usageMetadata.totalTokenCount === "number") {
         usage.totalTokenCount = chunk.usageMetadata.totalTokenCount;
       }
+      if (typeof chunk.usageMetadata.thoughtsTokenCount === "number") {
+        usage.thoughtsTokenCount = chunk.usageMetadata.thoughtsTokenCount;
+      }
     }
   }
   return { text, finishReason, usage };
 }
+
+// thinkingConfig is not yet in @google-cloud/vertexai 1.12.0 types but is
+// honored at runtime. Same pattern as safety/llmClassifier.ts. Disabling
+// thinking here because the entire maxOutputTokens budget was being consumed
+// by thoughts, truncating Martina's replies to 20–40 visible tokens (34%
+// MAX_TOKENS rate observed in prod-dev over 24h before this fix).
+type GenerationConfigWithThinking = GenerationConfig & {
+  thinkingConfig: { thinkingBudget: number };
+};
+
+const CALL_A_GENERATION_CONFIG: GenerationConfigWithThinking = {
+  temperature: 0.85,
+  topP: 0.95,
+  maxOutputTokens: 600,
+  thinkingConfig: { thinkingBudget: 0 },
+};
 
 export async function runCallA(
   input: CoachCallAInput,
@@ -140,7 +165,7 @@ export async function runCallA(
   const model = vertexAI.getGenerativeModel({
     model: GEMINI_MODEL,
     systemInstruction,
-    generationConfig: { temperature: 0.85, topP: 0.95, maxOutputTokens: 600 },
+    generationConfig: CALL_A_GENERATION_CONFIG,
   });
 
   const streamed = await retryOnQuota(
@@ -158,7 +183,8 @@ export async function runCallA(
   // is the current suspect). STOP is the only clean terminator.
   const finishReason = streamed.finishReason ?? "NONE";
   const candidatesTokens = streamed.usage.candidatesTokenCount ?? "unknown";
-  const line = `[CALLA] finishReason=${finishReason} candidatesTokens=${candidatesTokens} latencyMs=${latencyMs}`;
+  const thoughtsTokens = streamed.usage.thoughtsTokenCount ?? 0;
+  const line = `[CALLA] finishReason=${finishReason} candidatesTokens=${candidatesTokens} thoughtsTokens=${thoughtsTokens} latencyMs=${latencyMs}`;
   if (streamed.finishReason === "STOP") {
     console.log(line);
   } else {
