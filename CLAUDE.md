@@ -307,8 +307,14 @@ Lives in `packages/functions/src/prompts/content.ts` and `docs/prompts/coach_pur
 
 ### generationConfig (post-upgrade)
 
-| Call | Temperature | topP | maxOutputTokens |
-|---|---|---|---|
-| Call A (character) | 0.85 | 0.95 | 120 |
-| Call B (evaluator) | 0.2 | — | 2048 (with tags) / 200 (matrix only) |
-| Mentor | 0.7 | — | 1024 |
+| Call | Temperature | topP | maxOutputTokens | thinkingBudget |
+|---|---|---|---|---|
+| Call A (character) | 0.85 | 0.95 | 600 | 0 |
+| Call B (evaluator) | 0.2 | — | 4096 (with matrix) / 256 (tags only) | — (default) |
+| Mentor | 0.7 | — | 1024 | — (default) |
+
+Call A `thinkingBudget: 0` — Gemini 2.5 Flash consumes thinking tokens from the same
+pool as `maxOutputTokens`. Without pinning to 0, ~34% of Martina's replies were
+truncated to 20–40 visible tokens (thoughts ate the budget). Same pattern as the
+Layer 2 classifier in `safety/llmClassifier.ts`. A conversational turn in first person
+does not need chain-of-thought.

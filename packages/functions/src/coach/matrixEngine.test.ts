@@ -40,13 +40,14 @@ describe("applyMatrixDelta — clamping", () => {
 });
 
 describe("applyMatrixDelta — intensidadEmocional floor", () => {
-  it("enforces floor of 5 when piso is active", () => {
+  it("stays above the floor of 2 when piso is active", () => {
     const result = applyMatrixDelta(
       { ...BASE, intensidadEmocional: 6 },
       { ...zeroDelta, deltaIntensidadEmocional: -3 },
     );
-    // piso active (trustInHelp < 7 AND derivacionAcordada = false)
-    expect(result.intensidadEmocional).toBe(5);
+    // piso active (trustInHelp < 7 AND derivacionAcordada = false); floor lowered
+    // from 5→2 in commit 2d5ebe6 (formative calibration).
+    expect(result.intensidadEmocional).toBe(3);
     expect(result.pisoIntensidadActivo).toBe(true);
   });
 
@@ -65,13 +66,13 @@ describe("applyMatrixDelta — intensidadEmocional floor", () => {
     expect(result.pisoIntensidadActivo).toBe(false);
   });
 
-  it("floor stays active when only one condition is met", () => {
-    // confianza = 8 but derivacion not agreed
+  it("floor of 2 stays active when only one condition is met", () => {
+    // confianza = 8 but derivacion not agreed → floor still active at 2 (post-2d5ebe6)
     const result = applyMatrixDelta(
       { ...BASE, intensidadEmocional: 6, confianzaEnLaAyuda: 8, derivacionAcordada: false },
       { ...zeroDelta, deltaIntensidadEmocional: -3 },
     );
-    expect(result.intensidadEmocional).toBe(5);
+    expect(result.intensidadEmocional).toBe(3);
     expect(result.pisoIntensidadActivo).toBe(true);
   });
 });
