@@ -1,8 +1,7 @@
+import { REPORT_MODE } from "../lib/featureFlags.js";
 import SessionReportFull from "./SessionReportFull.js";
+import SessionReportMinimal from "./SessionReportMinimal.js";
 
-// Thin wrapper. Commit 1 keeps behaviour identical by always rendering the
-// legacy full report. Commit 2 introduces the REPORT_MODE switch that also
-// mounts SessionReportMinimal.
 export default function SessionReport() {
-  return <SessionReportFull />;
+  return REPORT_MODE === "full" ? <SessionReportFull /> : <SessionReportMinimal />;
 }
