@@ -313,12 +313,12 @@ export default function LabChat() {
       .then((snap) => {
         const role = (snap.data() as { role?: string } | undefined)?.role;
         if (role !== "admin") {
-          navigate("/");
+          navigate("/inicio");
           return;
         }
         setAccessChecked(true);
       })
-      .catch(() => navigate("/"));
+      .catch(() => navigate("/inicio"));
   }, [user, authLoading, navigate]);
 
   // ── Session state ────────────────────────────────────────────────────────

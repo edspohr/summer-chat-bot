@@ -49,7 +49,7 @@ export default function MentorChat() {
 
       <header className="px-6 py-4 border-b border-stone-100 bg-white flex items-center gap-4 relative z-10 shadow-sm">
         <button
-          onClick={() => navigate("/")}
+          onClick={() => navigate("/inicio")}
           className="w-10 h-10 rounded-full flex items-center justify-center text-stone-400 hover:text-summer-blue hover:bg-summer-blue/10 transition-all"
         >
           ←

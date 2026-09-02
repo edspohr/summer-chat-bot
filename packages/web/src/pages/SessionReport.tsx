@@ -119,7 +119,7 @@ export default function SessionReport() {
             Intentarlo de nuevo →
           </button>
           <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/inicio")}
             className="w-full bg-stone-100 hover:bg-stone-200 text-stone-600 font-secondary rounded-2xl py-3 text-sm font-semibold tracking-wide transition-colors"
           >
             Volver al inicio
