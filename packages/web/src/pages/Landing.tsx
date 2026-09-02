@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth.js";
+import { useAdminRole } from "../hooks/useAdminRole.js";
 import { logout } from "../lib/auth.js";
 import { AppIcon } from "../components/AppIcon.js";
 
@@ -348,7 +349,7 @@ function HowItWorksSection() {
   );
 }
 
-function AccessCardsSection() {
+function AccessCardsSection({ teamCardsActive }: { teamCardsActive: boolean }) {
   const [primary, ...rest] = ACCESS_CARDS;
   return (
     <section id="accesos" className="px-6 py-14 sm:py-20 bg-white/60">
@@ -363,10 +364,17 @@ function AccessCardsSection() {
         </div>
 
         <div className="grid grid-cols-1 gap-5">
-          {primary !== undefined && <AccessCardItem card={primary} dominant />}
+          {primary !== undefined && (
+            <AccessCardItem card={primary} dominant active />
+          )}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {rest.map((c) => (
-              <AccessCardItem key={c.href} card={c} dominant={false} />
+              <AccessCardItem
+                key={c.href}
+                card={c}
+                dominant={false}
+                active={c.team ? teamCardsActive : true}
+              />
             ))}
           </div>
         </div>
@@ -375,48 +383,81 @@ function AccessCardsSection() {
   );
 }
 
-function AccessCardItem({ card, dominant }: { card: AccessCard; dominant: boolean }) {
+function AccessCardItem({
+  card,
+  dominant,
+  active,
+}: {
+  card: AccessCard;
+  dominant: boolean;
+  active: boolean;
+}) {
   const accent = VARIANT_TO_ACCENT[card.variant];
   const button = VARIANT_TO_BUTTON[card.variant];
-  return (
-    <Link
-      to={card.href}
-      className={`group flex ${dominant ? "flex-col md:flex-row" : "flex-col"} gap-5 md:gap-6 bg-white border border-stone-100 rounded-3xl p-6 shadow-sm hover:shadow-md hover:scale-[1.01] transition-all`}
+
+  const layout = `flex ${dominant ? "flex-col md:flex-row" : "flex-col"} gap-5 md:gap-6 bg-white border border-stone-100 rounded-3xl p-6 shadow-sm transition-all`;
+  const interactive = "group hover:shadow-md hover:scale-[1.01]";
+  const disabled = "opacity-70 cursor-not-allowed";
+
+  const media = (
+    <div
+      className={`${accent} ${dominant ? "w-full md:w-48 md:h-48 aspect-square md:aspect-auto" : "w-20 h-20"} rounded-3xl overflow-hidden flex-shrink-0 flex items-center justify-center`}
+      aria-hidden="true"
     >
-      <div
-        className={`${accent} ${dominant ? "w-full md:w-48 md:h-48 aspect-square md:aspect-auto" : "w-20 h-20"} rounded-3xl overflow-hidden flex-shrink-0 flex items-center justify-center`}
-        aria-hidden="true"
-      >
-        {card.imageSrc !== undefined ? (
-          <img
-            src={card.imageSrc}
-            alt={card.imageAlt ?? ""}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
-        ) : (
-          <span className="text-4xl">{card.emoji}</span>
-        )}
-      </div>
-      <div className="flex-1 flex flex-col gap-3">
-        <div className="flex items-center gap-2 flex-wrap">
-          <h3 className={`font-title uppercase tracking-wide text-stone-800 ${dominant ? "text-2xl sm:text-3xl" : "text-xl"}`}>
-            {card.title}
-          </h3>
-          {card.team && (
-            <span className="inline-block text-[10px] font-secondary font-bold uppercase tracking-widest bg-stone-100 text-stone-600 rounded-full px-2.5 py-0.5">
-              Equipo
-            </span>
-          )}
-        </div>
-        <p className="font-secondary text-sm text-stone-700 leading-relaxed">{card.description}</p>
-        <span
-          className={`self-start inline-flex items-center gap-2 mt-auto rounded-full ${button} px-6 py-3 font-secondary text-sm font-bold tracking-wide shadow-sm group-hover:shadow-md transition-all`}
-        >
-          {card.cta}
-          <span aria-hidden="true">→</span>
+      {card.imageSrc !== undefined ? (
+        <img
+          src={card.imageSrc}
+          alt={card.imageAlt ?? ""}
+          className={`w-full h-full object-cover ${active ? "group-hover:scale-105" : ""} transition-transform duration-500`}
+        />
+      ) : (
+        <span className="text-4xl">{card.emoji}</span>
+      )}
+    </div>
+  );
+
+  const heading = (
+    <div className="flex items-center gap-2 flex-wrap">
+      <h3 className={`font-title uppercase tracking-wide text-stone-800 ${dominant ? "text-2xl sm:text-3xl" : "text-xl"}`}>
+        {card.title}
+      </h3>
+      {card.team && (
+        <span className="inline-block text-[10px] font-secondary font-bold uppercase tracking-widest bg-stone-100 text-stone-600 rounded-full px-2.5 py-0.5">
+          Equipo
         </span>
+      )}
+    </div>
+  );
+
+  if (active) {
+    return (
+      <Link to={card.href} className={`${layout} ${interactive}`}>
+        {media}
+        <div className="flex-1 flex flex-col gap-3">
+          {heading}
+          <p className="font-secondary text-sm text-stone-700 leading-relaxed">{card.description}</p>
+          <span
+            className={`self-start inline-flex items-center gap-2 mt-auto rounded-full ${button} px-6 py-3 font-secondary text-sm font-bold tracking-wide shadow-sm group-hover:shadow-md transition-all`}
+          >
+            {card.cta}
+            <span aria-hidden="true">→</span>
+          </span>
+        </div>
+      </Link>
+    );
+  }
+
+  return (
+    <div className={`${layout} ${disabled}`} aria-disabled="true">
+      {media}
+      <div className="flex-1 flex flex-col gap-3">
+        {heading}
+        <p className="font-secondary text-sm text-stone-700 leading-relaxed">{card.description}</p>
+        <p className="font-secondary text-xs text-stone-500 mt-auto">
+          Acceso para el equipo de Summer.
+        </p>
       </div>
-    </Link>
+    </div>
   );
 }
 
@@ -485,7 +526,10 @@ function LandingFooter() {
 
 export default function Landing() {
   const { user, loading } = useAuth();
+  const adminRole = useAdminRole();
   const [loggingOut, setLoggingOut] = useState(false);
+  const teamCardsActive =
+    adminRole.status === "authenticated" && adminRole.isAdmin;
 
   useEffect(() => {
     document.title = "Summer ChatBot · Martina — Entrenamiento en primeros auxilios emocionales";
@@ -512,7 +556,7 @@ export default function Landing() {
       <HeroSection />
       <OasisSection />
       <HowItWorksSection />
-      <AccessCardsSection />
+      <AccessCardsSection teamCardsActive={teamCardsActive} />
       <FunderCreditSection />
       <LandingFooter />
     </main>
