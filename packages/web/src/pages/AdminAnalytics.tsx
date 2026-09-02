@@ -19,6 +19,8 @@ import type { RollupDocument, RollupGroup } from "@salvador/shared";
 import { useAuth } from "../hooks/useAuth.js";
 import { signInAnon } from "../lib/auth.js";
 import { db } from "../firebase.js";
+import { IndicatorCard } from "../components/IndicatorCard.js";
+import { INDICATOR_COPY } from "../lib/indicatorCopy.js";
 
 // Santiago-local calendar day. Uses en-CA to get YYYY-MM-DD.
 function todayInSantiago(): string {
@@ -72,19 +74,48 @@ function GroupCard({ g }: { g: RollupGroup }) {
         </div>
       </header>
 
-      <div className="grid grid-cols-2 gap-3 text-xs font-secondary">
-        <Metric label="Dispositivos únicos" value={g.uniqueDevices.toString()} />
-        <Metric label="Tasa completación" value={formatPercent(completionRate)} />
-        <Metric
-          label="Dwell mediano"
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <IndicatorCard
+          title={INDICATOR_COPY.uniqueDevices.title}
+          value={g.uniqueDevices.toString()}
+          subtitle={INDICATOR_COPY.uniqueDevices.subtitle}
+          n={g.sessionsStarted}
+        />
+        <IndicatorCard
+          title={INDICATOR_COPY.completionRate.title}
+          value={formatPercent(completionRate)}
+          subtitle={INDICATOR_COPY.completionRate.subtitle}
+          n={g.sessionsStarted}
+        />
+        <IndicatorCard
+          title={INDICATOR_COPY.dwellMedian.title}
           value={g.dwell.count > 0 ? formatSeconds(g.dwell.medianSeconds) : "—"}
+          subtitle={INDICATOR_COPY.dwellMedian.subtitle}
+          n={g.dwell.count}
+          note={
+            (g.dwell.fallbackCount ?? 0) > 0
+              ? `${g.dwell.fallbackCount} con fuente aproximada`
+              : undefined
+          }
         />
-        <Metric
-          label="Turnos mediana"
+        <IndicatorCard
+          title={INDICATOR_COPY.turnsMedian.title}
           value={g.turns.count > 0 ? g.turns.medianTurns.toString() : "—"}
+          subtitle={INDICATOR_COPY.turnsMedian.subtitle}
+          n={g.turns.count}
         />
-        <Metric label="Tags/sesión (med)" value={g.tagsPerSessionMedian.toString()} />
-        <Metric label="Matriz movió %" value={formatPercent(g.matrixMovementRate)} />
+        <IndicatorCard
+          title={INDICATOR_COPY.tagsPerSession.title}
+          value={g.tagsPerSessionMedian.toString()}
+          subtitle={INDICATOR_COPY.tagsPerSession.subtitle}
+          n={g.sessionsStarted}
+        />
+        <IndicatorCard
+          title={INDICATOR_COPY.matrixMovement.title}
+          value={formatPercent(g.matrixMovementRate)}
+          subtitle={INDICATOR_COPY.matrixMovement.subtitle}
+          n={g.sessionsStarted}
+        />
       </div>
 
       <div className="space-y-2">
@@ -251,6 +282,11 @@ interface HistoricAggregate {
     under5Min: number;
     fiveToTenMin: number;
     overTenMin: number;
+    // MED-01: how many of the dwell values came from a fallback source
+    // (missing lastUserActivityAt on historical rows) and how many sessions
+    // in the window had no `sesionIniciadaEn` at all.
+    fallbackCount: number;
+    noStartCount: number;
   };
   daily: DailyPoint[];
   cohortCodes: string[]; // sorted, includes "__none" placeholder
@@ -285,6 +321,8 @@ function aggregateRollups(
   let dwellUnder5 = 0;
   let dwell5to10 = 0;
   let dwellOver10 = 0;
+  let dwellFallback = 0;
+  let dwellNoStart = 0;
   const dwellMedianPairs: Array<{ value: number; weight: number }> = [];
   const dwellP25Pairs: Array<{ value: number; weight: number }> = [];
   const dwellP75Pairs: Array<{ value: number; weight: number }> = [];
@@ -352,6 +390,8 @@ function aggregateRollups(
         dwellP25Pairs.push({ value: g.dwell.p25Seconds, weight: g.dwell.count });
         dwellP75Pairs.push({ value: g.dwell.p75Seconds, weight: g.dwell.count });
       }
+      dwellFallback += g.dwell.fallbackCount ?? 0;
+      dwellNoStart += g.dwell.noStartCount ?? 0;
     }
 
     if (daySessions > 0) {
@@ -401,6 +441,8 @@ function aggregateRollups(
       under5Min: dwellUnder5,
       fiveToTenMin: dwell5to10,
       overTenMin: dwellOver10,
+      fallbackCount: dwellFallback,
+      noStartCount: dwellNoStart,
     },
     daily,
     cohortCodes,
@@ -613,12 +655,40 @@ function HistoricView({
     [rollupsByDate, selectedCohort],
   );
 
+  // MED-02: latest rollup generation timestamp across the loaded window.
+  // Reads `generatedAtIso` (present on every rollup doc since Phase 6).
+  const lastRollupIso = useMemo(() => {
+    let latest: string | null = null;
+    for (const r of rollupsByDate.values()) {
+      if (latest === null || r.generatedAtIso > latest) latest = r.generatedAtIso;
+    }
+    return latest;
+  }, [rollupsByDate]);
+
   if (loadState === "loading") {
     return <p className="text-stone-400 text-sm">Cargando últimos {HISTORIC_WINDOW_DAYS} días…</p>;
   }
 
   return (
     <div className="space-y-5">
+      {/* MED-02: freshness + dwell-data-quality banner */}
+      <div className="bg-white/70 rounded-xl border border-stone-100 px-4 py-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-[11px] font-secondary text-stone-500">
+        <span>
+          Último rollup:{" "}
+          <span className="text-stone-700">
+            {lastRollupIso !== null
+              ? new Date(lastRollupIso).toLocaleString("es-CL")
+              : "—"}
+          </span>
+        </span>
+        {(agg.dwell.fallbackCount > 0 || agg.dwell.noStartCount > 0) && (
+          <span>
+            Permanencia: {agg.dwell.fallbackCount} sesiones con fuente aproximada ·{" "}
+            {agg.dwell.noStartCount} sin inicio registrado
+          </span>
+        )}
+      </div>
+
       {/* Filter row */}
       <div className="flex flex-wrap items-baseline gap-3">
         <label className="flex items-center gap-2 text-xs font-secondary text-stone-600">
