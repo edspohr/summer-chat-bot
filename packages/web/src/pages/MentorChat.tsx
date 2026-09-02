@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useChat } from "../hooks/useChat.js";
 import { ChatBubble } from "../components/ChatBubble.js";
 import { CrisisOverlay } from "../components/CrisisOverlay.js";
+import { HelpButton } from "../components/HelpButton.js";
 
 const SESSION_ID = crypto.randomUUID();
 
@@ -115,6 +116,7 @@ export default function MentorChat() {
         </div>
       </div>
     </div>
+      <HelpButton />
     </main>
   );
 }

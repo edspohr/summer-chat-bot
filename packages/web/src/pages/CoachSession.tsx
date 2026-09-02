@@ -9,6 +9,7 @@ import { ChatBubble } from "../components/ChatBubble.js";
 import { TagProgress } from "../components/TagProgress.js";
 import { CrisisOverlay } from "../components/CrisisOverlay.js";
 import { EmotionalMatrix } from "../components/EmotionalMatrix.js";
+import { HelpButton } from "../components/HelpButton.js";
 import { readCohort } from "../lib/cohort.js";
 import type { Scenario } from "@salvador/shared";
 
@@ -422,6 +423,8 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
             </button>
           </div>
         </div>
+
+        <HelpButton />
 
         {/* Emotional matrix side panel — sticky */}
         {estadoMatriz !== null && (
