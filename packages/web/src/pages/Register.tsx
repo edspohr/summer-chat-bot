@@ -46,7 +46,7 @@ export default function Register() {
         displayName: displayName.trim(),
         profileRole: profileRole as UserProfileRole,
       });
-      navigate("/");
+      navigate("/inicio");
     } catch (err) {
       setError(translateAuthError(err));
     } finally {

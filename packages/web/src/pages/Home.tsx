@@ -40,7 +40,11 @@ export default function Home() {
   return (
     <main className="min-h-screen flex flex-col bg-warm-bg">
       <header className="px-6 py-4 flex items-center justify-between border-b border-summer-blue/20 bg-white shadow-sm relative z-10">
-        <div className="flex items-center gap-3">
+        <Link
+          to="/"
+          className="flex items-center gap-3 rounded-2xl -mx-1 px-1 py-1 hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-summer-blue/50 transition-opacity"
+          aria-label="Ir a la portada de Summer ChatBot"
+        >
           <AppIcon size="sm" />
           <div className="hidden sm:block">
             <span className="font-title uppercase tracking-wide text-summer-blue text-sm block">Summer ChatBot</span>
@@ -49,7 +53,7 @@ export default function Home() {
           <div className="sm:hidden">
             <span className="font-title uppercase tracking-wide text-summer-blue text-sm">Summer ChatBot</span>
           </div>
-        </div>
+        </Link>
         <button
           onClick={() => setMenuOpen((v) => !v)}
           className="text-sm font-secondary font-semibold text-stone-500 hover:text-summer-blue truncate max-w-[180px] flex items-center gap-1 transition-colors"

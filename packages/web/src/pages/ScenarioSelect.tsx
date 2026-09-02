@@ -49,7 +49,7 @@ export default function ScenarioSelect() {
     <main className="min-h-screen flex flex-col bg-warm-bg">
       <header className="px-4 py-4 border-b border-stone-100 bg-white flex items-center gap-3 shadow-sm">
         <button
-          onClick={() => navigate("/")}
+          onClick={() => navigate("/inicio")}
           className="text-stone-400 hover:text-summer-blue text-xl px-1 transition-colors"
         >
           ←

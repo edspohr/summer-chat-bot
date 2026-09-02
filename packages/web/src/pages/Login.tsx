@@ -20,7 +20,7 @@ export default function Login() {
     setLoading("email");
     try {
       await signInWithEmail({ email: email.trim(), password });
-      navigate("/");
+      navigate("/inicio");
     } catch (err) {
       setError(translateAuthError(err));
     } finally {
@@ -33,7 +33,7 @@ export default function Login() {
     setLoading("google");
     try {
       await signInWithGoogle();
-      navigate("/");
+      navigate("/inicio");
     } catch (err) {
       setError(translateAuthError(err));
     } finally {

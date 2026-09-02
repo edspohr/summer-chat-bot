@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 import { db } from "../firebase.js";
 import { useAuth } from "../hooks/useAuth.js";
+import { useAdminRole } from "../hooks/useAdminRole.js";
 import { callLabChat, type LabChatRequest, type LabChatResponse } from "../lib/functions.js";
 import type { LabMode, LabScenario, LabMetrics, LabPromptSnapshot, EstadoMatriz } from "@salvador/shared";
 import { EmotionalMatrix } from "../components/EmotionalMatrix.js";
@@ -297,29 +298,28 @@ async function exportSession(sessionId: string, label: string): Promise<void> {
 // ── LabChat page ───────────────────────────────────────────────────────────
 
 export default function LabChat() {
-  const { user, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const adminRole = useAdminRole();
 
-  // Access control — checked on mount once auth resolves
-  const [accessChecked, setAccessChecked] = useState(false);
+  // Access control — mirrors previous inline check via the shared hook.
+  const accessChecked = adminRole.status === "authenticated" && adminRole.isAdmin;
 
   useEffect(() => {
     if (authLoading) return;
-    if (user === null) {
+    if (adminRole.status === "anonymous") {
       navigate("/login");
       return;
     }
-    getDoc(doc(db, "users", user.uid))
-      .then((snap) => {
-        const role = (snap.data() as { role?: string } | undefined)?.role;
-        if (role !== "admin") {
-          navigate("/");
-          return;
-        }
-        setAccessChecked(true);
-      })
-      .catch(() => navigate("/"));
-  }, [user, authLoading, navigate]);
+    if (adminRole.status === "authenticated" && !adminRole.isAdmin) {
+      navigate("/inicio");
+      return;
+    }
+    if (adminRole.status === "error") {
+      navigate("/inicio");
+      return;
+    }
+  }, [authLoading, adminRole, navigate]);
 
   // ── Session state ────────────────────────────────────────────────────────
 

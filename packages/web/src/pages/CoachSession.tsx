@@ -9,6 +9,9 @@ import { ChatBubble } from "../components/ChatBubble.js";
 import { TagProgress } from "../components/TagProgress.js";
 import { CrisisOverlay } from "../components/CrisisOverlay.js";
 import { EmotionalMatrix } from "../components/EmotionalMatrix.js";
+import { HelpButton } from "../components/HelpButton.js";
+import { FramingModal } from "../components/FramingModal.js";
+import { useFramingAck } from "../hooks/useFramingAck.js";
 import { readCohort } from "../lib/cohort.js";
 import type { Scenario } from "@salvador/shared";
 
@@ -209,6 +212,7 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const { acknowledged: framingAcknowledged, acknowledge: acknowledgeFraming } = useFramingAck();
 
   // Track which variables changed this turn (multiple can change simultaneously).
   // Also track per-variable delta sign so the bar can show a directional color cue.
@@ -283,7 +287,7 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const inputLocked = isLoading || crisisTemplate !== null || timerExpired;
+  const inputLocked = isLoading || crisisTemplate !== null || timerExpired || !framingAcknowledged;
 
   async function handleSend() {
     const text = input.trim();
@@ -305,6 +309,8 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
 
   return (
     <main className="h-screen flex flex-col bg-warm-bg max-w-2xl mx-auto overflow-hidden">
+      {!framingAcknowledged && <FramingModal onAcknowledge={acknowledgeFraming} />}
+
       {crisisTemplate !== null && (
         <CrisisOverlay
           template={crisisTemplate}
@@ -356,6 +362,11 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
             </p>
           </div>
           <TimerChip phase={phase} display={displayMmSs} />
+        </div>
+        <div className="flex">
+          <span className="bg-summer-yellow/60 text-stone-700 font-secondary text-xs rounded-full px-3 py-1">
+            Simulación · Martina no es real
+          </span>
         </div>
         <TagProgress items={tagProgressItems} />
       </header>
@@ -422,6 +433,8 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
             </button>
           </div>
         </div>
+
+        <HelpButton />
 
         {/* Emotional matrix side panel — sticky */}
         {estadoMatriz !== null && (
