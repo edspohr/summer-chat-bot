@@ -241,11 +241,11 @@ function HeroSection() {
           <div className="relative w-full max-w-sm">
             <div className="absolute -inset-4 bg-summer-pink/25 rounded-[3rem] rotate-3" aria-hidden="true" />
             <div className="absolute -inset-2 bg-summer-peach/30 rounded-[3rem] -rotate-2" aria-hidden="true" />
-            <div className="relative aspect-[4/5] rounded-[3rem] overflow-hidden bg-summer-pink/20 border border-white shadow-md">
+            <div className="relative aspect-square rounded-[3rem] overflow-hidden bg-summer-pink/20 border border-white shadow-md">
               <img
                 src="/avatar-martina-v3.png"
                 alt="Martina, personaje de simulación del Modo Coach"
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
               />
             </div>
           </div>
