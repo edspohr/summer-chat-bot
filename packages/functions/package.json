@@ -11,7 +11,8 @@
     "seed": "tsx scripts/seed-knowledge-base.ts",
     "seed:02": "tsx scripts/seed-scenario-02-matias.ts",
     "seed:no-embeddings": "tsx scripts/seed-knowledge-base.ts --skip-embeddings",
-    "backfill:analytics": "tsx scripts/backfill-analytics-rollups.ts"
+    "backfill:analytics": "tsx scripts/backfill-analytics-rollups.ts",
+    "export:pilot": "tsx scripts/export-pilot-data.ts"
   },
   "dependencies": {
     "@google-cloud/vertexai": "^1.0.0",

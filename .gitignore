@@ -1,6 +1,7 @@
 node_modules/
 dist/
 packages/functions/vendor-shared/
+packages/functions/exports/
 .env
 .env.local
 .env.*.local
