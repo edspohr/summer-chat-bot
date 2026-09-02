@@ -1,6 +1,6 @@
 # Technical Debt Register
 
-_Last updated: 2026-09-02 (0020 added — EST-01 finishReason observability gap)_
+_Last updated: 2026-09-02 (0021 added — vitest hangs on firebase-admin init at import)_
 
 | ID | Title | Severity | Status |
 |---|---|---|---|
@@ -24,6 +24,7 @@ _Last updated: 2026-09-02 (0020 added — EST-01 finishReason observability gap)
 | [0018](0018-martina-formative-workshop-2026-06-17.md) | Formative workshop build shortcuts — anon auth, prompt sync, clinical validation gap | medium | open |
 | [0019](0019-callb-model-split.md) | Call B uses `gemini-2.5-flash-lite` — model-split invariant break | low | open |
 | [0020](0020-est01-finishreason-observability.md) | Call A `finishReason` logged as plain text; no client-side fallback for truncated Martina | medium | open |
+| [0021](0021-vitest-firebase-admin-init-hang.md) | Vitest hangs on any test file that imports `src/config/firebase.ts` (matrixEngine, timerService) | medium | open |
 
 > **Debt 0003 is the highest urgency**: Layer 3 regex patterns are the first line of defense
 > for real crisis detection. Without clinical validation, there is risk of false negatives
