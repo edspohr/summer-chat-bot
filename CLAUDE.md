@@ -267,13 +267,24 @@ thresholds and anti-pattern definitions there without touching TypeScript code.
 
 ### Matrix variable contract
 
-Three variables tracked server-side per session (`sessions/{id}.estadoMatriz`):
+Three variables tracked server-side per session (`sessions/{id}.estadoMatriz`),
+initial values shown for scenario_03 (Martina):
 
 | Variable | Initial | Target | Range | Floor |
 |---|---|---|---|---|
-| `intensidadEmocional` | 8 | 1 | 1..10 | ≥5 until trustInHelp≥7 AND derivacionAcordada |
+| `intensidadEmocional` | 6 | 1 | 1..10 | ≥2 until trustInHelp≥7 AND derivacionAcordada |
 | `apertura` | 5 | 10 | 1..10 | — |
-| `confianzaEnLaAyuda` | 2 | 10 | 0..10 | Hard reset to 0 on dismissive referral |
+| `confianzaEnLaAyuda` | 4 | 10 | 0..10 | Hard reset to 0 on dismissive referral |
+
+**Runtime source of truth** for the initial values is `MARTINA_INITIAL_MATRIX`
+in `packages/shared/src/oasis/initialMatrix.ts` (re-exported as
+`INITIAL_ESTADO_MATRIZ` from `matrixConstants.ts`). The scenario document's
+`emotionalStateVariables.*.initial` field is decorative — the engine never
+reads it: `readMatrixState()` falls back to the shared constant when
+`estadoMatriz` is absent on the session doc. Web (Session Report, Coach
+bars), the Lab prompt scaffold and the closing-data export all read from
+the same shared map. See `docs/debt/0022` for the plan to let the engine
+read initials from the scenario doc.
 
 Deltas are applied in `packages/functions/src/coach/matrixEngine.ts`.
 Turn-level audit stored in `sessions/{id}/turnos/{turnoId}`.

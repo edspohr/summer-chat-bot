@@ -23,13 +23,6 @@ export interface EmotionalStateVariables {
   trustInHelp: number;
 }
 
-// Initial values for the Martina scenario (sent to client for initial render)
-export const INITIAL_MATRIX = {
-  intensidadEmocional: 6,
-  apertura: 4,
-  confianzaEnLaAyuda: 3,
-} as const;
-
 // Latency breakdown stored per turn in Firestore
 export interface TurnLatency {
   personaje: number;

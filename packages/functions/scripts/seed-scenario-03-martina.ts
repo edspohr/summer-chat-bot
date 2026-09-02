@@ -190,10 +190,14 @@ const scenario = {
     "Son las 13:15 del miércoles. El docente acaba de ver las inasistencias de Martina y recibió un comentario de un compañero sobre rumores de autolesiones. Decide ir a buscarla antes del recreo. La encuentra sola en el pasillo, mochila al hombro, mirando el suelo.",
   characterInstructions: CHARACTER_INSTRUCTIONS,
   seedMessage: SEED_MESSAGE,
+  // MED-13/task-1 alignment (2026-09-02): mirrors MARTINA_INITIAL_MATRIX in
+  // @salvador/shared. The engine's runtime source of truth is the constant,
+  // not this field — see docs/debt/0022. Keep them in sync until the engine
+  // learns to read initials from here.
   emotionalStateVariables: {
     emotionalIntensity: { initial: 6 },
-    openness: { initial: 4, admissionThreshold: 6 },
-    trustInHelp: { initial: 3 },
+    openness: { initial: 5, admissionThreshold: 6 },
+    trustInHelp: { initial: 4 },
   },
   requiredTags: [
     { tagId: "T_01_OBSERVA_SENALES_S03", attributionType: "addition", confidenceThreshold: 0.60 },

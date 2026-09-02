@@ -24,9 +24,14 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import { INITIAL_ESTADO_MATRIZ } from "../src/coach/matrixConstants.js";
 import { dwellSeconds } from "../src/analytics/aggregators.js";
-import { OASIS_PHASES_IN_ORDER, phaseFromTagId, type OasisPhase } from "@salvador/shared";
+import {
+  OASIS_PHASES_IN_ORDER,
+  phaseFromTagId,
+  initialMatrixFor,
+  MARTINA_INITIAL_MATRIX,
+  type OasisPhase,
+} from "@salvador/shared";
 
 if (!process.env["GCLOUD_PROJECT"] && !process.env["GOOGLE_CLOUD_PROJECT"]) {
   console.error("Set GCLOUD_PROJECT (or GOOGLE_CLOUD_PROJECT) before running.");
@@ -270,7 +275,9 @@ async function main(): Promise<void> {
     const dwellMin = dwell !== null ? dwell.seconds / 60 : null;
 
     const final = s.estadoMatriz;
-    const init = INITIAL_ESTADO_MATRIZ;
+    // Per-scenario canonical initial (falls back to Martina's map for any
+    // scenario not yet registered — matches engine behavior).
+    const init = initialMatrixFor(scenarioId) ?? MARTINA_INITIAL_MATRIX;
 
     const row: SessionRow = {
       sessionId: doc.id,

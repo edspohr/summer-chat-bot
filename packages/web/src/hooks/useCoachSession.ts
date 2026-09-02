@@ -9,7 +9,7 @@ import type {
   CrisisMeta,
   CrisisBranchId,
 } from "@salvador/shared";
-import { INITIAL_MATRIX } from "@salvador/shared";
+import { MARTINA_INITIAL_MATRIX, initialMatrixFor } from "@salvador/shared";
 import { callCoachTurn, callCrisisBranch } from "../lib/functions.js";
 import { db } from "../firebase.js";
 
@@ -58,10 +58,15 @@ export function useCoachSession(
 } {
   const allTagIds = scenario.requiredTags.map((t) => t.tagId);
 
+  // Initial emotional-state values used for the Call A prompt scaffold and
+  // the client's optimistic matrix bars. Sourced from the same canonical
+  // map the engine falls back to — never from scenario.emotionalStateVariables
+  // (decorative; see docs/debt/0022).
+  const canonicalInitial = initialMatrixFor(scenario.id) ?? MARTINA_INITIAL_MATRIX;
   const initialEmotionalState: EmotionalState = {
-    emotionalIntensity: scenario.emotionalStateVariables.emotionalIntensity.initial,
-    openness: scenario.emotionalStateVariables.openness.initial,
-    trustInHelp: scenario.emotionalStateVariables.trustInHelp.initial,
+    emotionalIntensity: canonicalInitial.intensidadEmocional,
+    openness: canonicalInitial.apertura,
+    trustInHelp: canonicalInitial.confianzaEnLaAyuda,
   };
 
   const seedMessage: LocalMessage = { role: "assistant", content: scenario.seedMessage };
@@ -76,9 +81,7 @@ export function useCoachSession(
 
   // Server-authoritative matrix and timer state
   const [estadoMatriz, setEstadoMatriz] = useState<EstadoMatriz | null>(
-    modo === "escenario"
-      ? { ...INITIAL_MATRIX, pisoIntensidadActivo: true, derivacionAcordada: false }
-      : null,
+    modo === "escenario" ? canonicalInitial : null,
   );
   const [timerState, setTimerState] = useState<TimerState | null>(null);
   const [timerExpired, setTimerExpired] = useState(false);

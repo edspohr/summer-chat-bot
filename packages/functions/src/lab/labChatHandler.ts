@@ -32,6 +32,7 @@ import {
 import { runCallB } from "../coach/callB.js";
 import { applyMatrixDelta, readMatrixState } from "../coach/matrixEngine.js";
 import { INITIAL_ESTADO_MATRIZ } from "../coach/matrixConstants.js";
+import { initialMatrixFor, MARTINA_INITIAL_MATRIX } from "@salvador/shared";
 
 // Safety settings applied to all Gemini calls — NON-NEGOTIABLE per architecture spec.
 // Same as production: BLOCK_ONLY_HIGH on DANGEROUS_CONTENT prevents empty responses
@@ -151,10 +152,14 @@ async function buildCoachContextPrompt(
     `Estado emocional base: ${scenario.persona.emotionalBaseline}`,
   ].join("\n");
 
+  // Prompt scaffold reads the canonical initial matrix (same source the
+  // engine falls back to), not the scenario doc's emotionalStateVariables
+  // field — see docs/debt/0022.
+  const canonicalInitial = initialMatrixFor(scenario.id) ?? MARTINA_INITIAL_MATRIX;
   const emotionalStateBlock = [
-    `emotional_intensity: ${scenario.emotionalStateVariables.emotionalIntensity.initial} / 10`,
-    `openness: ${scenario.emotionalStateVariables.openness.initial} / 10`,
-    `trust_in_help: ${scenario.emotionalStateVariables.trustInHelp.initial} / 10`,
+    `emotional_intensity: ${canonicalInitial.intensidadEmocional} / 10`,
+    `openness: ${canonicalInitial.apertura} / 10`,
+    `trust_in_help: ${canonicalInitial.confianzaEnLaAyuda} / 10`,
   ].join("\n");
 
   const historyText =

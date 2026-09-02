@@ -70,13 +70,11 @@ If the trainee turn has no clear effect on a variable, output 0 for that delta.
 Never output "RESET_ZERO" — use -2 for the most severe negative event.
 `;
 
-// Initial matrix state for scenario "martina" (and any scenario that does not override it)
-export const INITIAL_ESTADO_MATRIZ = {
-  intensidadEmocional: 6,
-  apertura: 5,
-  confianzaEnLaAyuda: 4,
-  pisoIntensidadActivo: true,
-  derivacionAcordada: false,
-} as const;
+// Initial matrix state for scenario "martina" — re-exported from
+// @salvador/shared so web, functions, the seed and the export script all read
+// the same numbers. Runtime source of truth: this constant. The scenario
+// document's emotionalStateVariables field is decorative (see debt/0022).
+import { MARTINA_INITIAL_MATRIX } from "@salvador/shared";
+export const INITIAL_ESTADO_MATRIZ = MARTINA_INITIAL_MATRIX;
 
 export const SESSION_DURATION_SECONDS = 600; // 10 minutes

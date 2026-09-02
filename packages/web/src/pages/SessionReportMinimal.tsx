@@ -7,6 +7,7 @@ import { useSessionReportData } from "../hooks/useSessionReportData.js";
 import { HelpButton } from "../components/HelpButton.js";
 import { OASIS_PHASES_IN_ORDER, phaseFromTagId } from "../lib/oasisPhase.js";
 import type { EstadoMatriz, OasisPhase, Scenario } from "@salvador/shared";
+import { initialMatrixFor, MARTINA_INITIAL_MATRIX } from "@salvador/shared";
 
 // User-facing Spanish (Chile). Kept in one constant so it is easy to edit
 // with the clinical team ahead of production.
@@ -219,25 +220,29 @@ function MatrixCard({ scenario, estado }: { scenario: Scenario; estado: EstadoMa
     );
   }
 
-  const vars = scenario.emotionalStateVariables;
+  // Read initial values from the same canonical source the engine falls back
+  // to (@salvador/shared → initialMatrixFor). Do NOT read from
+  // scenario.emotionalStateVariables — that field is decorative and can drift
+  // (see docs/debt/0022). Fallback to Martina's map if scenario is unknown.
+  const initial = initialMatrixFor(scenario.id) ?? MARTINA_INITIAL_MATRIX;
   const rows: MatrixRow[] = [
     {
       label: "Intensidad emocional",
-      initial: vars.emotionalIntensity.initial,
+      initial: initial.intensidadEmocional,
       final: estado.intensidadEmocional,
       color: "bg-summer-peach",
       track: "bg-summer-peach/20",
     },
     {
       label: "Apertura",
-      initial: vars.openness.initial,
+      initial: initial.apertura,
       final: estado.apertura,
       color: "bg-summer-teal",
       track: "bg-summer-teal/20",
     },
     {
       label: "Confianza en la ayuda",
-      initial: vars.trustInHelp.initial,
+      initial: initial.confianzaEnLaAyuda,
       final: estado.confianzaEnLaAyuda,
       color: "bg-summer-blue",
       track: "bg-summer-blue/20",
