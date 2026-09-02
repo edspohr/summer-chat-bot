@@ -63,7 +63,10 @@ for (const dateStr of dates) {
   try {
     const result = await buildAndWriteRollupForDate(dateStr);
     const elapsed = Date.now() - start;
-    console.log(`  ✓ ${dateStr} — groups=${result.groups} sessions=${result.sessions} (${elapsed}ms)`);
+    console.log(
+      `  ✓ ${dateStr} — groups=${result.groups} sessions=${result.sessions} ` +
+        `dwellFallback=${result.dwellFallback} dwellNoStart=${result.dwellNoStart} (${elapsed}ms)`,
+    );
   } catch (err) {
     console.error(`  ✗ ${dateStr} — FAILED:`, err);
   }

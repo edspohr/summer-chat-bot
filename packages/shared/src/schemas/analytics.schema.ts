@@ -13,6 +13,14 @@ export interface DwellStats {
   under5Min: number;
   fiveToTenMin: number;
   overTenMin: number;
+  // MED-01: sessions whose dwell was computed from a fallback source
+  // (last user message in the messages subcollection, or lastActivityAt)
+  // because `lastUserActivityAt` was absent. Optional to preserve back-compat
+  // with rollup docs written before MED-01.
+  fallbackCount?: number;
+  // Sessions in the day range that had no `sesionIniciadaEn` (the first user
+  // turn never fired). Excluded from `count` and from all percentile stats.
+  noStartCount?: number;
 }
 
 export interface TurnStats {

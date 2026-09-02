@@ -26,10 +26,19 @@ export function median(values: number[]): number {
 
 // ── Dwell-time bucketing ───────────────────────────────────────────────────
 
-const FIVE_MIN_S = 5 * 60;
+// The "meaningful engagement" threshold used to bucket the dwell histogram.
+// Exposed as a single constant so callers (dashboard, export script) can
+// reference it without hard-coding "5". Revisit in MED-08 once we have
+// pilot data on typical session length.
+export const DWELL_THRESHOLD_MINUTES = 5;
+
+const FIVE_MIN_S = DWELL_THRESHOLD_MINUTES * 60;
 const TEN_MIN_S = 10 * 60;
 
-export function computeDwellStats(dwellSecondsPerSession: number[]): DwellStats {
+export function computeDwellStats(
+  dwellSecondsPerSession: number[],
+  extras: { fallbackCount?: number; noStartCount?: number } = {},
+): DwellStats {
   const sorted = [...dwellSecondsPerSession].sort((a, b) => a - b);
   let under5Min = 0;
   let fiveToTenMin = 0;
@@ -47,6 +56,8 @@ export function computeDwellStats(dwellSecondsPerSession: number[]): DwellStats 
     under5Min,
     fiveToTenMin,
     overTenMin,
+    fallbackCount: extras.fallbackCount ?? 0,
+    noStartCount: extras.noStartCount ?? 0,
   };
 }
 
@@ -63,19 +74,51 @@ export function computeTurnStats(turnCountsPerSession: number[]): TurnStats {
 
 // ── Session-level derivations ──────────────────────────────────────────────
 
-// Approximate dwell time in seconds. Prefers server-authoritative endedAt if
-// present; otherwise falls back to lastActivityAt. Sessions with no start are
-// dropped (returns null). Timestamps are Firestore Timestamps.
-export function dwellSeconds(
-  startedAt: Timestamp | undefined,
-  endedAt: Timestamp | null | undefined,
-  lastActivityAt: Timestamp | undefined,
-): number | null {
-  if (startedAt === undefined) return null;
-  const end = endedAt ?? lastActivityAt;
+export type DwellSource = "user_activity" | "fallback";
+
+export interface DwellResult {
+  seconds: number;
+  source: DwellSource;
+}
+
+// MED-01: dwell time is now defined as the interval between the first user
+// turn (`sesionIniciadaEn`) and the last user turn (`lastUserActivityAt`).
+// This intentionally excludes assistant turns, nudges, timer ticks and report
+// generation, which used to contaminate the old `lastActivityAt`-based value.
+//
+// Fallback path: if `lastUserActivityAt` is missing (historical rows written
+// before MED-01), the caller can supply a `lastUserMessageAt` derived from
+// the messages subcollection; failing that, `lastActivityAt` is used and the
+// result is marked `source: "fallback"` so the dashboard can surface the
+// dilution.
+//
+// Sessions without `sesionIniciadaEn` are excluded (returns null) and should
+// be counted separately as "sin inicio" by the caller.
+export function dwellSeconds(input: {
+  sesionIniciadaEn: Timestamp | null | undefined;
+  lastUserActivityAt: Timestamp | null | undefined;
+  lastUserMessageAt?: Timestamp | null | undefined;
+  lastActivityAt?: Timestamp | null | undefined;
+}): DwellResult | null {
+  const start = input.sesionIniciadaEn;
+  if (start === undefined || start === null) return null;
+
+  let end: Timestamp | null | undefined = input.lastUserActivityAt;
+  let source: DwellSource = "user_activity";
+
+  if (end === undefined || end === null) {
+    end = input.lastUserMessageAt;
+    source = "fallback";
+  }
+  if (end === undefined || end === null) {
+    end = input.lastActivityAt;
+    source = "fallback";
+  }
   if (end === undefined || end === null) return null;
-  const seconds = (end.toMillis() - startedAt.toMillis()) / 1000;
-  return seconds >= 0 ? seconds : null;
+
+  const seconds = (end.toMillis() - start.toMillis()) / 1000;
+  if (seconds < 0) return null;
+  return { seconds, source };
 }
 
 // Whether the emotional matrix moved from its initial values by session end.

@@ -31,6 +31,10 @@ interface SessionDoc {
   state?: string;
   startedAt?: Timestamp;
   lastActivityAt?: Timestamp;
+  // MED-01: first user turn (ISO string, written by timerService.startTimer)
+  // and last user turn (Timestamp, written by session.updateLastUserActivity).
+  sesionIniciadaEn?: string | null;
+  lastUserActivityAt?: Timestamp | null;
   endedAt?: Timestamp | null;
   turnCount?: number;
   crisisBranch?: string | null;
@@ -67,6 +71,10 @@ interface MessageAggregates {
   safeguardActivations: number;
   nudgesSent: number;
   repliesAfterNudge: number;
+  // MED-01: timestamp of the last message with role === "user" in this
+  // session, used as the dwell fallback when `lastUserActivityAt` is missing
+  // on the session doc (historical rows).
+  lastUserMessageAt: Timestamp | null;
 }
 
 // Scans a session's messages once and returns the counts we need. Doing all
@@ -83,11 +91,13 @@ async function messageAggregatesForSession(sessionId: string): Promise<MessageAg
   let nudgesSent = 0;
   let repliesAfterNudge = 0;
   let lastWasNudge = false;
+  let lastUserMessageAt: Timestamp | null = null;
 
   for (const doc of snap.docs) {
     const data = doc.data() as {
       role?: string;
       safetyLayerTriggered?: string;
+      createdAt?: Timestamp;
       meta?: { isNudge?: boolean };
     };
     if (typeof data.safetyLayerTriggered === "string") safeguardActivations++;
@@ -100,9 +110,12 @@ async function messageAggregatesForSession(sessionId: string): Promise<MessageAg
     } else if (data.role === "user") {
       lastWasNudge = false;
     }
+    if (data.role === "user" && data.createdAt !== undefined) {
+      lastUserMessageAt = data.createdAt;
+    }
   }
 
-  return { safeguardActivations, nudgesSent, repliesAfterNudge };
+  return { safeguardActivations, nudgesSent, repliesAfterNudge, lastUserMessageAt };
 }
 
 // Track unique-device counts per group. Building this in a Set keeps it O(1)
@@ -111,6 +124,9 @@ type GroupAccumulator = {
   group: RollupGroup;
   devices: Set<string>;
   dwellSecondsList: number[];
+  // MED-01: parallel to dwellSecondsList — how each dwell value was derived.
+  dwellFallbackCount: number;
+  dwellNoStartCount: number;
   turnCountsList: number[];
   tagCountsList: number[];
 };
@@ -128,6 +144,8 @@ export async function buildRollupForDate(dateStr: string): Promise<RollupDocumen
         group: emptyGroup(scenarioId, cohortCode),
         devices: new Set(),
         dwellSecondsList: [],
+        dwellFallbackCount: 0,
+        dwellNoStartCount: 0,
         turnCountsList: [],
         tagCountsList: [],
       };
@@ -154,9 +172,6 @@ export async function buildRollupForDate(dateStr: string): Promise<RollupDocumen
       acc.group.ended[endBucket] += 1;
     }
 
-    const dwell = dwellSeconds(data.startedAt, data.endedAt, data.lastActivityAt);
-    if (dwell !== null) acc.dwellSecondsList.push(dwell);
-
     if (typeof data.turnCount === "number") acc.turnCountsList.push(data.turnCount);
 
     if (matrixMoved(data.estadoMatriz ?? null)) acc.group.matrixMovedSessions += 1;
@@ -181,13 +196,38 @@ export async function buildRollupForDate(dateStr: string): Promise<RollupDocumen
     acc.group.crisis.safeguardActivations += msgAgg.safeguardActivations;
     acc.group.nudgesSent += msgAgg.nudgesSent;
     acc.group.repliesAfterNudge += msgAgg.repliesAfterNudge;
+
+    // MED-01: dwell time from first→last user turn. `sesionIniciadaEn` is
+    // written as an ISO string by timerService; convert to Timestamp so
+    // dwellSeconds() can use the same math as the other timestamp inputs.
+    // Sessions without a first user turn are counted separately and excluded
+    // from percentile stats.
+    const sesionIniciadaAt =
+      typeof data.sesionIniciadaEn === "string" && data.sesionIniciadaEn.length > 0
+        ? Timestamp.fromDate(new Date(data.sesionIniciadaEn))
+        : null;
+    const dwell = dwellSeconds({
+      sesionIniciadaEn: sesionIniciadaAt,
+      lastUserActivityAt: data.lastUserActivityAt ?? null,
+      lastUserMessageAt: msgAgg.lastUserMessageAt,
+      lastActivityAt: data.lastActivityAt ?? null,
+    });
+    if (dwell === null) {
+      if (sesionIniciadaAt === null) acc.dwellNoStartCount += 1;
+    } else {
+      acc.dwellSecondsList.push(dwell.seconds);
+      if (dwell.source === "fallback") acc.dwellFallbackCount += 1;
+    }
   }
 
   // Finalize each group — compute medians/rates now that all sessions are in.
   const groups: RollupGroup[] = [];
   for (const [, acc] of accs) {
     acc.group.uniqueDevices = acc.devices.size;
-    acc.group.dwell = computeDwellStats(acc.dwellSecondsList);
+    acc.group.dwell = computeDwellStats(acc.dwellSecondsList, {
+      fallbackCount: acc.dwellFallbackCount,
+      noStartCount: acc.dwellNoStartCount,
+    });
     acc.group.turns = computeTurnStats(acc.turnCountsList);
     acc.group.tagsPerSessionMedian = Math.round(median(acc.tagCountsList));
     acc.group.matrixMovementRate =
@@ -216,11 +256,15 @@ export async function writeRollup(rollup: RollupDocument): Promise<void> {
   await db.collection("analytics_rollups").doc(rollup.date).set(rollup);
 }
 
-export async function buildAndWriteRollupForDate(dateStr: string): Promise<{ groups: number; sessions: number }> {
+export async function buildAndWriteRollupForDate(
+  dateStr: string,
+): Promise<{ groups: number; sessions: number; dwellFallback: number; dwellNoStart: number }> {
   const rollup = await buildRollupForDate(dateStr);
   await writeRollup(rollup);
   return {
     groups: rollup.groups.length,
     sessions: rollup.groups.reduce((sum, g) => sum + g.sessionsStarted, 0),
+    dwellFallback: rollup.groups.reduce((sum, g) => sum + (g.dwell.fallbackCount ?? 0), 0),
+    dwellNoStart: rollup.groups.reduce((sum, g) => sum + (g.dwell.noStartCount ?? 0), 0),
   };
 }
