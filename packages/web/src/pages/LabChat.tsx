@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 import { db } from "../firebase.js";
 import { useAuth } from "../hooks/useAuth.js";
-import { signInAnon } from "../lib/auth.js";
+import { useAdminRole } from "../hooks/useAdminRole.js";
 import { callLabChat, type LabChatRequest, type LabChatResponse } from "../lib/functions.js";
 import type { LabMode, LabScenario, LabMetrics, LabPromptSnapshot, EstadoMatriz } from "@salvador/shared";
 import { EmotionalMatrix } from "../components/EmotionalMatrix.js";
@@ -297,24 +298,27 @@ async function exportSession(sessionId: string, label: string): Promise<void> {
 // ── LabChat page ───────────────────────────────────────────────────────────
 
 export default function LabChat() {
-  const { user, loading: authLoading } = useAuth();
-  const didAttempt = useRef(false);
+  const { loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+  const adminRole = useAdminRole();
 
-  // Access control — open route (facilitator use, not linked publicly).
-  // Same pattern as MartinaDemo: silently sign in anonymously so the lab
-  // works without a login prompt. The "DEV ONLY" banner (below) is our
-  // remaining signal to participants that this is not for them.
+  const accessChecked = adminRole.status === "authenticated" && adminRole.isAdmin;
+
   useEffect(() => {
     if (authLoading) return;
-    if (user !== null) return;
-    if (didAttempt.current) return;
-    didAttempt.current = true;
-    signInAnon().catch((err) => {
-      console.error("[LAB] anon sign-in failed", err);
-    });
-  }, [authLoading, user]);
-
-  const accessChecked = user !== null;
+    if (adminRole.status === "anonymous") {
+      navigate("/login");
+      return;
+    }
+    if (adminRole.status === "authenticated" && !adminRole.isAdmin) {
+      navigate("/inicio");
+      return;
+    }
+    if (adminRole.status === "error") {
+      navigate("/inicio");
+      return;
+    }
+  }, [authLoading, adminRole, navigate]);
 
   // ── Session state ────────────────────────────────────────────────────────
 

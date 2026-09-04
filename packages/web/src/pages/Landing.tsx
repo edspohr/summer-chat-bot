@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth.js";
+import { useAdminRole } from "../hooks/useAdminRole.js";
 import { logout } from "../lib/auth.js";
 import { AppIcon } from "../components/AppIcon.js";
 
@@ -348,7 +349,7 @@ function HowItWorksSection() {
   );
 }
 
-function AccessCardsSection({ teamCardsActive }: { teamCardsActive: boolean }) {
+function AccessCardsSection({ labActive }: { labActive: boolean }) {
   const [primary, ...rest] = ACCESS_CARDS;
   return (
     <section id="accesos" className="px-6 py-14 sm:py-20 bg-white/60">
@@ -372,7 +373,7 @@ function AccessCardsSection({ teamCardsActive }: { teamCardsActive: boolean }) {
                 key={c.href}
                 card={c}
                 dominant={false}
-                active={c.team ? teamCardsActive : true}
+                active={c.href === "/lab" ? labActive : true}
               />
             ))}
           </div>
@@ -526,9 +527,9 @@ function LandingFooter() {
 export default function Landing() {
   const { user, loading } = useAuth();
   const [loggingOut, setLoggingOut] = useState(false);
-  // /lab and /admin/analytics are open by URL (facilitator use). The Landing
-  // cards mirror that — always render the Link, no admin gate.
-  const teamCardsActive = true;
+  // /lab is admin-only; /admin/analytics stays open by URL (facilitator use).
+  const adminRole = useAdminRole();
+  const labActive = adminRole.status === "authenticated" && adminRole.isAdmin;
 
   useEffect(() => {
     document.title = "Summer ChatBot · Martina — Entrenamiento en primeros auxilios emocionales";
@@ -555,7 +556,7 @@ export default function Landing() {
       <HeroSection />
       <OasisSection />
       <HowItWorksSection />
-      <AccessCardsSection teamCardsActive={teamCardsActive} />
+      <AccessCardsSection labActive={labActive} />
       <FunderCreditSection />
       <LandingFooter />
     </main>
