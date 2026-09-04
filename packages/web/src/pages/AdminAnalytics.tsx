@@ -1056,6 +1056,15 @@ export default function AdminAnalytics() {
       </header>
 
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-5">
+        <div
+          role="note"
+          className="rounded-2xl shadow-sm px-5 py-4 bg-[#FDE49C] text-stone-800 font-secondary text-sm leading-relaxed"
+        >
+          Herramienta interna en calibración. Los datos son agregados y no
+          personales; las métricas pueden cambiar mientras validamos el modelo
+          de medición.
+        </div>
+
         {viewMode === "day" && (
           <>
             {dayState.kind === "loading" && (
