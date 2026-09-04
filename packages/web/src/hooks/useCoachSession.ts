@@ -155,11 +155,10 @@ export function useCoachSession(
     if (!content.trim()) return false;
 
     // Cap history to match the server-side schema max in coachHandler.ts
-    // (currently 20). Without this, sessions with >10 exchanges fail with
-    // HTTP 400 once the client sends the 21st item. Keeps the trailing
-    // window since recent context matters most for LLM coherence; the
-    // seed message is dropped after turn 11, which is acceptable (Martina's
-    // persona is re-primed via scenario doc in every Call A prompt).
+    // (currently 40). We keep the last 20 client-side: recent context
+    // matters most for LLM coherence, and the seed is dropped after a few
+    // exchanges (Martina's persona is re-primed via the scenario doc in
+    // every Call A prompt).
     const currentHistory = historyRef.current.slice(-20);
     const currentTurnNumber = turnNumberRef.current;
     const currentPendingTagIds = allTagIds.filter(
