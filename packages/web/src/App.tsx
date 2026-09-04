@@ -29,9 +29,9 @@ export default function App() {
         <Route path="/report/:sessionId" element={<SessionReport />} />
         {/* /martina — QR demo entry: anonymous auth + direct Martina session */}
         <Route path="/martina" element={<MartinaDemo />} />
-        {/* /lab is admin-only — not linked in any participant-visible navigation */}
+        {/* /lab — facilitator-only tool; open (anon sign-in). Not linked in any participant-visible navigation. */}
         <Route path="/lab" element={<LabChat />} />
-        {/* /admin/analytics — admin-only aggregate dashboard (Phase 6) */}
+        {/* /admin/analytics — aggregate dashboard; open (anon sign-in). Data is aggregated/non-personal by design. */}
         <Route path="/admin/analytics" element={<AdminAnalytics />} />
       </Routes>
     </BrowserRouter>

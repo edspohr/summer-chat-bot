@@ -6,7 +6,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth.js";
-import { useAdminRole } from "../hooks/useAdminRole.js";
 import { logout } from "../lib/auth.js";
 import { AppIcon } from "../components/AppIcon.js";
 
@@ -423,7 +422,7 @@ function AccessCardItem({
       </h3>
       {card.team && (
         <span className="inline-block text-[10px] font-secondary font-bold uppercase tracking-widest bg-stone-100 text-stone-600 rounded-full px-2.5 py-0.5">
-          Equipo
+          Equipo · en calibración
         </span>
       )}
     </div>
@@ -516,7 +515,7 @@ function LandingFooter() {
             Iniciar sesión
           </Link>
           <p className="text-xs text-stone-500">
-            Recursos de ayuda: <span className="font-bold">*4141 (Salud Responde, Chile)</span>
+            Recursos de ayuda: <span className="font-bold">*4141 (Línea de Prevención del Suicidio, MINSAL Chile)</span>
           </p>
         </div>
       </div>
@@ -526,10 +525,10 @@ function LandingFooter() {
 
 export default function Landing() {
   const { user, loading } = useAuth();
-  const adminRole = useAdminRole();
   const [loggingOut, setLoggingOut] = useState(false);
-  const teamCardsActive =
-    adminRole.status === "authenticated" && adminRole.isAdmin;
+  // /lab and /admin/analytics are open by URL (facilitator use). The Landing
+  // cards mirror that — always render the Link, no admin gate.
+  const teamCardsActive = true;
 
   useEffect(() => {
     document.title = "Summer ChatBot · Martina — Entrenamiento en primeros auxilios emocionales";
