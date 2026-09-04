@@ -50,7 +50,13 @@ function extractResponseText(
 }
 
 export const mentorChat = onCall(
-  { region: "southamerica-west1", invoker: "public" },
+  {
+    region: "southamerica-west1",
+    invoker: "public",
+    // Kept warm for GORE event 2026-09-04 to avoid first-hit cold starts.
+    // Safe to remove once event traffic subsides.
+    minInstances: 1,
+  },
   async (request: CallableRequest) => {
     const userId = request.auth?.uid;
     if (userId === undefined) {

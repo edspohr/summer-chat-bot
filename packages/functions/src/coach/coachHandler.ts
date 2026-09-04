@@ -39,7 +39,7 @@ const CoachTurnRequestSchema = z.object({
   sessionId: z.string(),
   scenarioId: z.string(),
   turnNumber: z.number().int().nonnegative(),
-  conversationHistory: z.array(ConversationTurnSchema).max(20).default([]),
+  conversationHistory: z.array(ConversationTurnSchema).max(40).default([]),
   emotionalState: EmotionalStateSchema,
   pendingTagIds: z.array(z.string()).default([]),
   modo: SimulationModeSchema.default("escenario"),
@@ -90,8 +90,9 @@ export const coachTurn = onCall(
     invoker: "public",
     timeoutSeconds: 180,
     memory: "512MiB",
-    // Pinned via console on 2026-08-11; declared here so it survives future deploys.
-    minInstances: 1,
+    // Pinned via console on 2026-08-11 at 1; bumped to 3 on 2026-09-04 for GORE
+    // event (75 concurrent). Safe to lower back to 1 once the event is over.
+    minInstances: 3,
   },
   async (request: CallableRequest) => {
     const userId = request.auth?.uid;
