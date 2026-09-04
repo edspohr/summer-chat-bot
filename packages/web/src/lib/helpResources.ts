@@ -25,7 +25,7 @@ export const HELP_RESOURCES: readonly HelpResource[] = [
   {
     kind: "phone",
     name: "*4141",
-    detail: "Línea de prevención del suicidio, Salud Responde. 24 horas, gratuita.",
+    detail: "Línea de Prevención del Suicidio del MINSAL. 24 horas, gratuita.",
     tel: "*4141",
   },
   {

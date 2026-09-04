@@ -16,7 +16,7 @@ const CLOSING_COPY = {
   body:
     "Cada conversación que practicas te prepara para acompañar mejor a un estudiante real. No hay una única forma correcta de hacerlo: lo importante es seguir intentando. Martina estará aquí cuando quieras volver a practicar.",
   reminder:
-    "Recuerda que esto fue una simulación. Si tú o alguien cercano necesita apoyo ahora, llama al *4141.",
+    "Recuerda que esto fue una simulación. Si tú o alguien cercano necesita apoyo ahora, llama al *4141 (Línea de Prevención del Suicidio del MINSAL).",
   primary: "Intentar de nuevo",
   secondary: "Volver al inicio",
 } as const;

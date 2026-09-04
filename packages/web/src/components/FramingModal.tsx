@@ -12,12 +12,12 @@ const FRAMING_COPY = {
     "Estás por entrar a una simulación de entrenamiento. Lee esto con calma, toma menos de un minuto.",
   points: [
     {
-      heading: "Martina no es una persona real.",
+      heading: "Martina NO ES una persona real.",
       body:
         "Es un personaje creado por Fundación Summer para que practiques primeros auxilios emocionales. No es un chatbot de apoyo ni de contención.",
     },
     {
-      heading: "Es un espacio de sparring.",
+      heading: "Es un espacio de prueba.",
       body:
         "Martina puede cerrarse, resistirse o ponerte a prueba. Eso es parte del ejercicio, no un juicio sobre ti. Aquí se puede equivocar y volver a intentar.",
     },
@@ -33,7 +33,7 @@ const FRAMING_COPY = {
     },
   ],
   warning:
-    "Si tú o alguien cercano está en riesgo ahora, no uses esta herramienta. Llama al *4141 (Salud Responde, 24 horas).",
+    "Si tú o alguien cercano está en riesgo ahora, no uses esta herramienta. Llama al *4141 (Línea de Prevención del Suicidio del MINSAL, 24 horas, gratuita).",
   button: "Entiendo, quiero comenzar",
   fineprint:
     "Al continuar aceptas participar en esta simulación en los términos descritos.",
