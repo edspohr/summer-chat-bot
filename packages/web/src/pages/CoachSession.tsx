@@ -407,7 +407,7 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
             {isLoading && (
               <div className="flex justify-start mb-3">
                 <div className="bg-white border border-stone-200 rounded-2xl px-4 py-2 text-sm text-stone-400">
-                  Escribiendo...
+                  {scenario.persona.name} está escribiendo…
                 </div>
               </div>
             )}

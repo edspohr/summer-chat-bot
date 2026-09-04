@@ -18,6 +18,13 @@ interface LocalMessage {
   content: string;
 }
 
+// Minimum "typing" window for Martina's replies. If the server responds
+// faster than this, we hold the reply until the window elapses; if it
+// responds slower, the reply is shown as soon as it arrives. Softens the
+// tempo — instant replies broke immersion.
+const MIN_TYPING_MS_BASE = 4000;
+const MIN_TYPING_MS_JITTER = 2000;
+
 interface EmotionalState {
   emotionalIntensity: number;
   openness: number;
@@ -171,6 +178,9 @@ export function useCoachSession(
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
 
+    const sendStart = Date.now();
+    const minTypingMs = MIN_TYPING_MS_BASE + Math.random() * MIN_TYPING_MS_JITTER;
+
     try {
       const result = await callCoachTurn({
         traineeMessage: content,
@@ -223,6 +233,10 @@ export function useCoachSession(
         return true;
       }
 
+      const elapsed = Date.now() - sendStart;
+      const holdMs = Math.max(0, minTypingMs - elapsed);
+      if (holdMs > 0) await new Promise((r) => setTimeout(r, holdMs));
+
       const assistantMsg: LocalMessage = { role: "assistant", content: data.reply };
       setMessages((prev) => [...prev, assistantMsg]);
 
@@ -242,6 +256,7 @@ export function useCoachSession(
         setHistory((prev) => [...prev, userTurn, assistantTurn]);
         setTurnNumber((n) => n + 2);
       }
+      setIsLoading(false);
       return true;
     } catch (err) {
       console.error("[COACH_TURN] send failed", err);
@@ -249,9 +264,8 @@ export function useCoachSession(
         ...prev.filter((m) => m !== userMsg),
         { role: "assistant", content: "Ocurrió un error. Por favor intenta de nuevo." },
       ]);
-      return false;
-    } finally {
       setIsLoading(false);
+      return false;
     }
   }, [sessionId, scenario.id, modo]); // eslint-disable-line react-hooks/exhaustive-deps
 
