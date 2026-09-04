@@ -19,6 +19,10 @@
   "hosting": {
     "public": "packages/web/dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "predeploy": [
+      "pnpm --filter @salvador/shared build",
+      "pnpm --filter @salvador/web build"
+    ],
     "rewrites": [
       {
         "source": "**",
