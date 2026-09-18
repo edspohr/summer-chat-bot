@@ -21,7 +21,7 @@ Salvador es un chatbot de entrenamiento en primeros auxilios emocionales para la
 
 | Componente | Versión |
 |---|---|
-| Node.js | 20 LTS |
+| Node.js | 22 LTS |
 | TypeScript | 5.x strict mode |
 | pnpm | 9.x (workspace) |
 | Firebase CLI | latest compatible con Gen2 |

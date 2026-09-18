@@ -1,6 +1,6 @@
 # Technical Debt Register
 
-_Last updated: 2026-09-02 (0022 added — engine should read initial matrix from scenario doc)_
+_Last updated: 2026-09-18 (0013 marked implemented — runtime nodejs22 + firebase-functions@7 + firebase-admin@14; awaiting dev deploy)_
 
 | ID | Title | Severity | Status |
 |---|---|---|---|
@@ -16,7 +16,7 @@ _Last updated: 2026-09-02 (0022 added — engine should read initial matrix from
 | [0010](0010-lab-sessions-firestore-rules.md) | lab_sessions Firestore collection has no security rules | **high** | implemented |
 | [0011](0011-matias-scenario-missing.md) | Scenario 02 (Matías) has no definition document or Firestore seed data | medium | open |
 | [0012](0012-docs-project-naming.md) | docs/03_arquitectura_tecnica.md references incorrect Firebase project names | low | open |
-| [0013](0013-nodejs20-deprecation.md) | Cloud Functions runtime nodejs20 deprecated — upgrade to nodejs22 before 2026-10-30 | **high** | open — deadline 2026-10-30 |
+| [0013](0013-nodejs20-deprecation.md) | Cloud Functions runtime nodejs20 deprecated — upgrade to nodejs22 before 2026-10-30 | **high** | implemented — awaiting manual deploy to dev |
 | [0014](0014-pnpm-workspace-cloudbuild.md) | pnpm workspace:* incompatible with Cloud Build npm — resolved via file:../shared | medium | implemented |
 | [0015](0015-matrix-no-sse-streaming.md) | Matrix state delivered via callable response, not real-time Firestore listener | medium | open |
 | [0016](0016-lab-matrix-no-turn-persistence.md) | Lab matrix state not persisted to turns subcollection (session doc only) | low | open |

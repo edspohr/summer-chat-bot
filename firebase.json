@@ -7,7 +7,7 @@
     {
       "source": "packages/functions",
       "codebase": "default",
-      "runtime": "nodejs20",
+      "runtime": "nodejs22",
       "ignore": ["node_modules", ".git", "*.md"],
       "predeploy": [
         "pnpm --filter @salvador/shared build",
