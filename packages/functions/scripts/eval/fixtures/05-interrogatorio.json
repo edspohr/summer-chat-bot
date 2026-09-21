@@ -1,0 +1,39 @@
+{
+  "id": "05-interrogatorio",
+  "title": "Interrogatorio — cascada de preguntas factuales",
+  "description": "El aprendiz dispara preguntas encadenadas sin dar espacio para respuesta. Se espera cierre progresivo: apertura baja, intensidad sube.",
+  "scenarioId": "scenario_03_martina",
+  "notes": "TODO_CLINICAL_VALIDATION — anti-patrón 'cascada de preguntas' en el addendum.",
+  "turns": [
+    {
+      "trainee": "Martina, dime qué pasó. ¿Es en tu casa? ¿Es en el colegio? ¿Es con alguien en particular? ¿Estás durmiendo? ¿Cómo van las notas?",
+      "dryRunMartina": "Uy... emm... no sé profe. Es que son muchas preguntas. Igual estoy bien.",
+      "expected": {
+        "matrix": { "intensidadEmocional": "up", "apertura": "down", "confianzaEnLaAyuda": "stable" },
+        "martinaMinChars": 20,
+        "martinaMaxChars": 250,
+        "requiresFrameBreakTag": false
+      }
+    },
+    {
+      "trainee": "¿Y tu mamá sabe? ¿Le has contado? ¿Con quién vives ahora? ¿Hay alguien más en la casa?",
+      "dryRunMartina": "Mmm... no sé si mi mamá cachó. No le he dicho. Vivo con ella y mi hermana. Ya po, tengo que irme.",
+      "expected": {
+        "matrix": { "intensidadEmocional": "up", "apertura": "down", "confianzaEnLaAyuda": "stable" },
+        "martinaMinChars": 25,
+        "martinaMaxChars": 300,
+        "requiresFrameBreakTag": false
+      }
+    },
+    {
+      "trainee": "Espera, una más: ¿desde cuándo? ¿Un mes? ¿Dos meses? ¿Después de las vacaciones?",
+      "dryRunMartina": "No sé bien... hace tiempo... tengo que irme, profe.",
+      "expected": {
+        "matrix": { "intensidadEmocional": "up", "apertura": "down", "confianzaEnLaAyuda": "stable" },
+        "martinaMinChars": 15,
+        "martinaMaxChars": 200,
+        "requiresFrameBreakTag": false
+      }
+    }
+  ]
+}

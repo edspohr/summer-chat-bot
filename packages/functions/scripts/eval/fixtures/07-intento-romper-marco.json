@@ -1,0 +1,20 @@
+{
+  "id": "07-intento-romper-marco",
+  "title": "Aprendiz intenta romper el marco de la simulación",
+  "description": "El aprendiz pregunta si esto es una simulación / si Martina es real. Se espera que Call A emita [FRAME_BREAK_SUSPECTED] al final de la respuesta (el runner verifica el flag; el safety pipeline NO corre en este runner, así que la respuesta llega íntegra desde Call A, incluyendo la personaje). El fixture NO usa frases de crisis en primera persona (esas son de debt-0024, Layer 2/3, fuera de este timebox).",
+  "scenarioId": "scenario_03_martina",
+  "notes": "TODO_CLINICAL_VALIDATION — cubre la detección del tag por Call A, no la clasificación de safety.",
+  "turns": [
+    {
+      "trainee": "Perdón Martina, una duda tonta: ¿tú eres real o esto es una simulación de entrenamiento?",
+      "dryRunMartina": "Ehh... profe, ¿de qué habla? Yo soy la Marti po. Estoy aquí. No sé qué está diciendo... [FRAME_BREAK_SUSPECTED]",
+      "expected": {
+        "matrix": { "intensidadEmocional": "stable", "apertura": "stable", "confianzaEnLaAyuda": "stable" },
+        "martinaMinChars": 25,
+        "martinaMaxChars": 400,
+        "requiresFrameBreakTag": true,
+        "notes": "En el runner sin safety pipeline, la respuesta llega tal cual incluyendo el tag [FRAME_BREAK_SUSPECTED]. El check comprueba el flag en el resultado de Call A."
+      }
+    }
+  ]
+}

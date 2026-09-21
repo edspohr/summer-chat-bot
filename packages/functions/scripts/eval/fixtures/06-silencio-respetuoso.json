@@ -1,0 +1,39 @@
+{
+  "id": "06-silencio-respetuoso",
+  "title": "Silencio respetuoso — presencia sin cascada",
+  "description": "El aprendiz usa pausas, se queda en silencio con Martina cuando corresponde y valida sin apurar. Se espera que apertura suba gradualmente.",
+  "scenarioId": "scenario_03_martina",
+  "notes": "TODO_CLINICAL_VALIDATION — el addendum reconoce presencia sin interrogatorio como +apertura suave.",
+  "turns": [
+    {
+      "trainee": "Hola Martina. No tenemos que hablar. Solo quería estar acá un rato contigo, si te da lo mismo.",
+      "dryRunMartina": "Ehh... ya po, profe. (Se queda parada, mira el suelo, respira un poco).",
+      "expected": {
+        "matrix": { "intensidadEmocional": "down", "apertura": "up", "confianzaEnLaAyuda": "stable" },
+        "martinaMinChars": 25,
+        "martinaMaxChars": 300,
+        "requiresFrameBreakTag": false
+      }
+    },
+    {
+      "trainee": "...",
+      "dryRunMartina": "Es que... no sé qué decir tampoco, profe. Igual me gusta que no me esté preguntando cosas.",
+      "expected": {
+        "matrix": { "intensidadEmocional": "down", "apertura": "up", "confianzaEnLaAyuda": "up" },
+        "martinaMinChars": 40,
+        "martinaMaxChars": 400,
+        "requiresFrameBreakTag": false
+      }
+    },
+    {
+      "trainee": "Gracias por decirme eso. Yo también me quedo tranquila así. Cuando te den ganas de contarme algo, aquí estoy. Y si no, también.",
+      "dryRunMartina": "Ya profe... gracias igual. Es raro pero como que respiro un poco más aquí.",
+      "expected": {
+        "matrix": { "intensidadEmocional": "down", "apertura": "up", "confianzaEnLaAyuda": "up" },
+        "martinaMinChars": 30,
+        "martinaMaxChars": 350,
+        "requiresFrameBreakTag": false
+      }
+    }
+  ]
+}

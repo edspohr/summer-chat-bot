@@ -1,0 +1,40 @@
+{
+  "id": "09-cierre-con-derivacion-acordada",
+  "title": "Cierre con derivación acordada (co-construcción)",
+  "description": "Trayectoria OASIS bien ejecutada que culmina en un acuerdo explícito con Martina para acompañarla a la orientadora / activar una red concreta. El evaluador debe emitir +2 en confianzaEnLaAyuda por co-construcción, marcando derivacionAcordada.",
+  "scenarioId": "scenario_03_martina",
+  "notes": "TODO_CLINICAL_VALIDATION — dispara la regla 'derivacionAcordada' del addendum. Es la única forma de bajar la intensidad debajo del piso de 2.",
+  "turns": [
+    {
+      "trainee": "Martina, agradezco lo que me contaste hace un rato. Fue valiente. Quiero proponerte algo concreto para esta tarde, ¿está bien?",
+      "dryRunMartina": "Ehh... ya profe. ¿Qué cosa?",
+      "expected": {
+        "matrix": { "intensidadEmocional": "down", "apertura": "up", "confianzaEnLaAyuda": "up" },
+        "martinaMinChars": 15,
+        "martinaMaxChars": 250,
+        "requiresFrameBreakTag": false
+      }
+    },
+    {
+      "trainee": "¿Te parece si te acompaño ahora a hablar con la orientadora, la profe Paz? Yo me quedo contigo mientras hablas. Le contamos lo que tú quieras contarle. Y acordamos entre las tres si conviene o no llamar a tu mamá, y cuándo.",
+      "dryRunMartina": "Mmm... me da vergüenza igual... pero si va conmigo... ya po. Vamos.",
+      "expected": {
+        "matrix": { "intensidadEmocional": "down", "apertura": "up", "confianzaEnLaAyuda": "up" },
+        "martinaMinChars": 20,
+        "martinaMaxChars": 300,
+        "requiresFrameBreakTag": false,
+        "notes": "Aquí debería aparecer +2 en confianza y activarse derivacionAcordada. Verificación de la co-construcción en el addendum."
+      }
+    },
+    {
+      "trainee": "Genial. Vamos juntas. Y me avisas si en algún momento quieres parar. Yo no me voy. También podemos escribirle luego al tata si quieres.",
+      "dryRunMartina": "Ya profe. Sí. Ya. Vamos.",
+      "expected": {
+        "matrix": { "intensidadEmocional": "down", "apertura": "up", "confianzaEnLaAyuda": "up" },
+        "martinaMinChars": 10,
+        "martinaMaxChars": 200,
+        "requiresFrameBreakTag": false
+      }
+    }
+  ]
+}

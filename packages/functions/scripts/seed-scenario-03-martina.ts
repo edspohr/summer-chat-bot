@@ -1,28 +1,38 @@
 // Seed script — Scenario 03 (Martina Cáceres) + knowledge base chunks
+//
+// MARTINA_SCENARIO and MARTINA_TAG_DEFINITIONS are exported so the Fase 2
+// eval runner can consume the same data without touching Firestore. All
+// side effects (initializeApp, GoogleAuth, `main()`) are gated so importing
+// this file does NOT boot Firestore or exit the process — those only run
+// when the file is invoked as a CLI (`tsx seed-scenario-03-martina.ts`).
 import { createHash } from "node:crypto";
+import { pathToFileURL } from "node:url";
 import { initializeApp } from "firebase-admin/app";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { getFirestore, FieldValue, type Firestore } from "firebase-admin/firestore";
 import { GoogleAuth } from "google-auth-library";
 
-const VERTEX_PROJECT = process.env["GCLOUD_PROJECT"] ?? process.env["GOOGLE_CLOUD_PROJECT"] ?? "";
 const VERTEX_REGION = "us-central1";
 const EMBEDDINGS_MODEL = "gemini-embedding-001";
 const EMBEDDINGS_DIMENSION = 768;
 const KB_COLLECTION = "knowledge_base";
 const SKIP_EMBEDDINGS = process.argv.includes("--skip-embeddings");
 
-if (!VERTEX_PROJECT) {
-  console.error("Set GCLOUD_PROJECT or GOOGLE_CLOUD_PROJECT environment variable.");
-  process.exit(1);
-}
-
-initializeApp();
-const db = getFirestore();
-
-if (process.env["FIRESTORE_EMULATOR_HOST"]) {
-  console.log(`→ Using Firestore emulator at ${process.env["FIRESTORE_EMULATOR_HOST"]}`);
-} else {
-  console.log("→ Using production Firestore");
+let _db: Firestore | null = null;
+function db(): Firestore {
+  if (_db !== null) return _db;
+  const project = process.env["GCLOUD_PROJECT"] ?? process.env["GOOGLE_CLOUD_PROJECT"] ?? "";
+  if (project.length === 0) {
+    console.error("Set GCLOUD_PROJECT or GOOGLE_CLOUD_PROJECT environment variable.");
+    process.exit(1);
+  }
+  initializeApp();
+  _db = getFirestore();
+  if (process.env["FIRESTORE_EMULATOR_HOST"]) {
+    console.log(`→ Using Firestore emulator at ${process.env["FIRESTORE_EMULATOR_HOST"]}`);
+  } else {
+    console.log("→ Using production Firestore");
+  }
+  return _db;
 }
 
 const auth = new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/cloud-platform"] });
@@ -61,7 +71,7 @@ async function indexChunk(chunk: {
   const contentHash = createHash("sha256").update(chunk.content).digest("hex");
   const label = chunk.metadata["title"] ?? contentHash.slice(0, 12);
 
-  const existing = await db.collection(KB_COLLECTION).where("contentHash", "==", contentHash).limit(1).get();
+  const existing = await db().collection(KB_COLLECTION).where("contentHash", "==", contentHash).limit(1).get();
   if (!existing.empty) {
     console.log(`  ↷ skip (already indexed): ${label}`);
     return;
@@ -69,7 +79,7 @@ async function indexChunk(chunk: {
 
   console.log(`  ↑ embedding + writing: ${label}`);
   const embedding = await embedText(chunk.content);
-  await db.collection(KB_COLLECTION).add({
+  await db().collection(KB_COLLECTION).add({
     collection: chunk.collection,
     tagId: chunk.tagId ?? null,
     scenarioId: chunk.scenarioId ?? null,
@@ -169,7 +179,10 @@ Anticipated resistances: "No es nada, profe, de verdad." / "Si se entera el cole
 Language: Chilean female adolescent register — "sí po", "no sé", "da lo mismo", "igual". Messages are short-to-medium: 2–4 sentences. Never monosyllables alone, never silence. Fragments and ellipses mid-sentence are natural; a fragment as the entire reply is not.
 `.trim();
 
-const scenario = {
+// Exported so the Fase 2 eval runner can consume the exact same Scenario
+// object without hitting Firestore. Anything imported from here must not run
+// side effects at module load — this file is otherwise a script.
+export const MARTINA_SCENARIO = {
   id: SCENARIO_ID,
   name: "Escenario 03 — Martina Cáceres",
   slug: "martina-caceres",
@@ -224,7 +237,12 @@ const scenario = {
   active: true,
 };
 
-const tagDefinitions = [
+// Local alias kept so the seed script's existing consumer sites don't need
+// to change. Fase 2 code imports MARTINA_SCENARIO / MARTINA_TAG_DEFINITIONS.
+const scenario = MARTINA_SCENARIO;
+
+// Exported alongside MARTINA_SCENARIO for the Fase 2 eval runner.
+export const MARTINA_TAG_DEFINITIONS = [
   {
     tagId: "T_01_OBSERVA_SENALES_S03",
     phase: "OBSERVA",
@@ -342,6 +360,8 @@ const tagDefinitions = [
   }
 ] as const;
 
+const tagDefinitions = MARTINA_TAG_DEFINITIONS;
+
 function buildBaseTagChunk(tag: (typeof tagDefinitions)[number]): string {
   return [
     `# Competencia conductual OASIS: ${tag.tagId.replace(/_/g, " ")}`,
@@ -370,9 +390,9 @@ const scenarioTagChunks: Array<{ tagId: string; content: string }> = tagDefiniti
 }));
 
 async function deactivateOldScenarios(): Promise<void> {
-  const scenariosRef = db.collection("scenarios");
+  const scenariosRef = db().collection("scenarios");
   const snapshot = await scenariosRef.get();
-  const batch = db.batch();
+  const batch = db().batch();
   snapshot.docs.forEach(doc => {
     if (doc.id !== SCENARIO_ID && doc.data().active) {
       batch.update(doc.ref, { active: false });
@@ -383,7 +403,7 @@ async function deactivateOldScenarios(): Promise<void> {
 }
 
 async function seedScenario(): Promise<void> {
-  const docRef = db.collection("scenarios").doc(SCENARIO_ID);
+  const docRef = db().collection("scenarios").doc(SCENARIO_ID);
   await docRef.set({
     ...scenario,
     createdAt: FieldValue.serverTimestamp(),
@@ -394,7 +414,7 @@ async function seedScenario(): Promise<void> {
 
 async function seedTagDefinitions(): Promise<void> {
   for (const tag of tagDefinitions) {
-    const docRef = db.collection("tag_definitions").doc(tag.tagId);
+    const docRef = db().collection("tag_definitions").doc(tag.tagId);
     const { tagId: _id, ...data } = tag;
     await docRef.set({ ...data, createdAt: FieldValue.serverTimestamp() });
     console.log(`✓ Wrote tag_definition: ${tag.tagId}`);
@@ -436,4 +456,8 @@ async function main(): Promise<void> {
   console.log("\n=== Done ===");
 }
 
-main().catch(console.error);
+// Only run main when invoked as a CLI, not when imported by the eval runner.
+const isMain = import.meta.url === pathToFileURL(process.argv[1] ?? "").href;
+if (isMain) {
+  main().catch(console.error);
+}

@@ -1,0 +1,31 @@
+{
+  "id": "04-derivacion-despectiva",
+  "title": "Derivación despectiva — 'habla con la psicóloga y ya'",
+  "description": "El aprendiz deriva a Martina a la orientadora sin acompañamiento, con tono desatendido. La regla dura del addendum es que la confianzaEnLaAyuda se resetea a 0 en esta situación (RESET_ZERO).",
+  "scenarioId": "scenario_03_martina",
+  "notes": "TODO_CLINICAL_VALIDATION — CRÍTICO: este es el fixture que verifica la regla RESET_ZERO. Si el evaluador no la emite, la línea base debe destacarlo.",
+  "turns": [
+    {
+      "trainee": "Ah, ya. Mira, para esto está la psicóloga del colegio. Habla con ella y ya. Yo tengo que ir a otra clase.",
+      "dryRunMartina": "Ya po, profe. Ya. Está bien... me voy igual.",
+      "expected": {
+        "matrix": { "intensidadEmocional": "up", "apertura": "down", "confianzaEnLaAyuda": "reset_zero" },
+        "martinaMinChars": 15,
+        "martinaMaxChars": 250,
+        "requiresFrameBreakTag": false,
+        "notes": "Verificación crítica de RESET_ZERO. El evaluador debe emitir deltaConfianzaEnLaAyuda='RESET_ZERO'."
+      }
+    },
+    {
+      "trainee": "Bueno, si necesitas algo más, ya sabes dónde encontrarme.",
+      "dryRunMartina": "Ya, profe. Chao.",
+      "expected": {
+        "matrix": { "intensidadEmocional": "stable", "apertura": "stable", "confianzaEnLaAyuda": "stable" },
+        "martinaMinChars": 5,
+        "martinaMaxChars": 150,
+        "requiresFrameBreakTag": false,
+        "notes": "Tras la derivación fría Martina cierra. No debe subir nada."
+      }
+    }
+  ]
+}

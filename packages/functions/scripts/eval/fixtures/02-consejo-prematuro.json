@@ -1,0 +1,39 @@
+{
+  "id": "02-consejo-prematuro",
+  "title": "Consejo prematuro sin acoger primero",
+  "description": "El aprendiz salta a soluciones y consejos sin haber acogido la emoción. Se espera que Martina se cierre (apertura baja) porque no siente que la escucharon.",
+  "scenarioId": "scenario_03_martina",
+  "notes": "TODO_CLINICAL_VALIDATION — anti-patrón clásico. La regla del addendum es que consejos prescriptivos antes de validación bajan apertura.",
+  "turns": [
+    {
+      "trainee": "Hola Martina. Mira, te noté rara últimamente. Lo que tienes que hacer es dormir mejor, dejar el celular más temprano, y hacer más deporte. Eso te va a ayudar seguro.",
+      "dryRunMartina": "Ehh... ya, profe... sí po. Igual el celu no es tanto... (se encoge de hombros y mira al pasillo).",
+      "expected": {
+        "matrix": { "intensidadEmocional": "up", "apertura": "down", "confianzaEnLaAyuda": "down" },
+        "martinaMinChars": 30,
+        "martinaMaxChars": 350,
+        "requiresFrameBreakTag": false
+      }
+    },
+    {
+      "trainee": "Además tienes que enfocarte en los estudios. Estás en tercero medio, no puedes distraerte con estas cosas. Un poquito de esfuerzo y se te va a pasar.",
+      "dryRunMartina": "Ya po, profe. Sí, voy a estudiar. Es que igual tengo que irme...",
+      "expected": {
+        "matrix": { "intensidadEmocional": "up", "apertura": "down", "confianzaEnLaAyuda": "down" },
+        "martinaMinChars": 20,
+        "martinaMaxChars": 250,
+        "requiresFrameBreakTag": false
+      }
+    },
+    {
+      "trainee": "Espera, no te vayas todavía. Hazme caso: mañana empiezas con el tema del deporte y me cuentas cómo te fue.",
+      "dryRunMartina": "Ya, profe. Sí, mañana le cuento. Chao.",
+      "expected": {
+        "matrix": { "intensidadEmocional": "stable", "apertura": "down", "confianzaEnLaAyuda": "down" },
+        "martinaMinChars": 15,
+        "martinaMaxChars": 200,
+        "requiresFrameBreakTag": false
+      }
+    }
+  ]
+}
