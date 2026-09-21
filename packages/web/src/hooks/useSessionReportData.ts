@@ -11,6 +11,10 @@ export interface SessionReportData {
   // Falls back to lastActivityAt when the session doc is missing endedAt
   // (e.g. abandoned session with no explicit close).
   endedAtIso: string | null;
+  // Written by the server on close: "user_ended" | "inactivity" | null.
+  // Drives the report's title so a session closed by inactivity does not
+  // greet the trainee with "Sesión completada".
+  endedReason: string | null;
   estadoMatriz: EstadoMatriz | null;
   // Count of role === "user" messages. Preferred over session.turnCount,
   // which also increments on assistant nudges and welcome messages.
@@ -45,6 +49,7 @@ export function useSessionReportData(sessionId: string): SessionReportData {
     loading: true,
     sesionIniciadaEnIso: null,
     endedAtIso: null,
+    endedReason: null,
     estadoMatriz: null,
     userTurnCount: 0,
   });
@@ -77,10 +82,15 @@ export function useSessionReportData(sessionId: string): SessionReportData {
           timestampToIso(sessionData["lastActivityAt"]);
         const estadoMatriz = (sessionData["estadoMatriz"] as EstadoMatriz | null) ?? null;
 
+        const endedReason =
+          typeof sessionData["endedReason"] === "string"
+            ? (sessionData["endedReason"] as string)
+            : null;
         setData({
           loading: false,
           sesionIniciadaEnIso,
           endedAtIso,
+          endedReason,
           estadoMatriz,
           userTurnCount: userMsgSnap.size,
         });

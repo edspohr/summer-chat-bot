@@ -73,7 +73,10 @@ export default function SessionReportMinimal() {
   return (
     <main className="min-h-screen bg-warm-bg py-6 sm:py-10 px-4">
       <div className="max-w-3xl mx-auto space-y-5">
-        <HeaderCard scenarioName={scenario.persona.name} />
+        <HeaderCard
+          scenarioName={scenario.persona.name}
+          endedReason={reportData.endedReason}
+        />
 
         <AchievementCard pct={achievementPct} />
 
@@ -97,7 +100,26 @@ export default function SessionReportMinimal() {
 
 // ── Sub-components ────────────────────────────────────────────────────────
 
-function HeaderCard({ scenarioName }: { scenarioName: string }) {
+function titleFor(endedReason: string | null): string {
+  switch (endedReason) {
+    case "inactivity":
+      return "Sesión cerrada por inactividad";
+    case "user_ended":
+    case "completed":
+    case "closed_completed":
+      return "Sesión completada";
+    default:
+      return "Resumen de la sesión";
+  }
+}
+
+function HeaderCard({
+  scenarioName,
+  endedReason,
+}: {
+  scenarioName: string;
+  endedReason: string | null;
+}) {
   return (
     <section className="bg-white rounded-3xl shadow-sm border border-stone-100 p-6 sm:p-7 flex items-center gap-4">
       <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-summer-peach/20 overflow-hidden border border-stone-100 flex-shrink-0">
@@ -111,7 +133,7 @@ function HeaderCard({ scenarioName }: { scenarioName: string }) {
       </div>
       <div className="min-w-0">
         <h1 className="font-title uppercase tracking-wide text-summer-blue text-xl sm:text-2xl">
-          Sesión completada
+          {titleFor(endedReason)}
         </h1>
         <p className="font-secondary text-sm text-stone-600 mt-1">
           Gracias por practicar con {scenarioName.split(" ")[0]}.

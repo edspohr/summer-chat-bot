@@ -290,11 +290,20 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
   //   crisis_interrupted             → keep the crisis overlay path; no PRO-03.
   const [closingReason, setClosingReason] =
     useState<"inactivity" | "user_ended" | null>(null);
+  // Duration shown on PRO-03 is frozen at the moment of transition to a
+  // closed state — the live timer keeps ticking otherwise, which showed
+  // "5:27" for a session actually closed at 4:07 in the smoke test.
+  const [frozenElapsedSeconds, setFrozenElapsedSeconds] = useState<number | null>(null);
   useEffect(() => {
     if (closingReason !== null) return;
-    if (serverClosedState === "closed_inactivity") setClosingReason("inactivity");
-    else if (serverClosedState === "closed_completed") setClosingReason("user_ended");
-  }, [serverClosedState, closingReason]);
+    if (serverClosedState === "closed_inactivity") {
+      setClosingReason("inactivity");
+      setFrozenElapsedSeconds(elapsedSeconds);
+    } else if (serverClosedState === "closed_completed") {
+      setClosingReason("user_ended");
+      setFrozenElapsedSeconds(elapsedSeconds);
+    }
+  }, [serverClosedState, closingReason, elapsedSeconds]);
 
   // "Terminar sesión" flow: below the 5-minute threshold, ask before ending.
   const [showEndConfirm, setShowEndConfirm] = useState(false);
@@ -311,9 +320,10 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
     } finally {
       setEndingSession(false);
       setShowEndConfirm(false);
+      setFrozenElapsedSeconds(elapsedSeconds);
       setClosingReason("user_ended");
     }
-  }, [sessionId]);
+  }, [sessionId, elapsedSeconds]);
 
   const handleEndClick = useCallback(() => {
     if (elapsedSeconds < SESSION_COMPLETE_AT_SECONDS) {
@@ -345,7 +355,7 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
       {closingReason !== null && (
         <SessionClosingScreen
           reason={closingReason}
-          elapsedSeconds={elapsedSeconds}
+          elapsedSeconds={frozenElapsedSeconds ?? elapsedSeconds}
           onViewReport={goToReport}
           onGoHome={goHome}
         />
