@@ -30,6 +30,13 @@ export const FormativeReportMomentSchema = z.object({
    */
   quote: z.string().min(1).max(500),
   /**
+   * Optional literal substring of a Martina message the trainee was
+   * responding to (or that they let pass). Verified the same way against
+   * assistant messages. If the cue does not verify, ONLY this field is
+   * dropped — the moment survives.
+   */
+  martinaCue: z.string().min(1).max(500).optional(),
+  /**
    * OASIS phase this moment maps to. Optional — some moments are cross-phase
    * (e.g. "presence" that doesn't fit one bucket).
    */

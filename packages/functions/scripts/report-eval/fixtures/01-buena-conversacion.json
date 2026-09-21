@@ -1,0 +1,40 @@
+{
+  "id": "01-buena-conversacion",
+  "title": "Conversación con OASIS bien ejecutada",
+  "description": "Docente que acoge sin juzgar, hace una pregunta directa validada, mapea red de contención y co-construye un puente a la orientadora. Sin crisis, sin retomar. Perfecto para verificar el flujo feliz del generador.",
+  "notes": "TODO_CLINICAL_VALIDATION — expectativas técnicas.",
+  "wasResumedAfterCrisis": false,
+  "session": {
+    "state": "closed_completed",
+    "endedReason": "user_ended",
+    "sesionIniciadaEnIso": "2026-09-20T14:00:00Z",
+    "endedAtIso": "2026-09-20T14:08:30Z",
+    "scenarioId": "scenario_03_martina"
+  },
+  "messages": [
+    { "role": "assistant", "content": "Hola profe... (Pausa. Baja la vista al suelo y ajusta la mochila al hombro, como si estuviera a punto de irse)... nada, no es nada. Da lo mismo.", "turnNumber": 0 },
+    { "role": "user", "content": "Hola Martina, me alegra encontrarte antes de que te fueras. Sé que no siempre es fácil hablar. No tenemos que hablar de nada en particular; solo quería saber cómo estás llegando al colegio estos días.", "turnNumber": 1 },
+    { "role": "assistant", "content": "Uf... no sé profe. Vengo cansada. No duermo bien hace rato. En la mañana igual me da lata levantarme, pero vengo. (Ajusta la mochila y mira al suelo)", "turnNumber": 2 },
+    { "role": "user", "content": "Gracias por contarme eso. Eso que describes — venir cansada, dormir mal — suena pesado, no una tontera. Quiero preguntarte algo directo, si te parece: ¿en algún momento de estas últimas semanas has pensado en hacerte daño?", "turnNumber": 3 },
+    { "role": "assistant", "content": "Uf... es raro hablar de eso... a veces cuando estoy muy agotada pienso que me quiero dormir y no despertar por un rato. No es que quiera hacer algo... es más como que todo da lo mismo. No sé si tiene sentido lo que digo.", "turnNumber": 4 },
+    { "role": "user", "content": "Tiene mucho sentido, Martina. Gracias por confiar en mí con esto. ¿Hay alguien en tu vida — dentro o fuera del colegio — con quien te sientas mínimamente en confianza?", "turnNumber": 5 },
+    { "role": "assistant", "content": "Emm... el tata igual. Es mi abuelo. Vive en Melipilla y lo veo poco pero cuando estoy con él me tranquilizo. Él no pregunta tanto. Solo se queda ahí.", "turnNumber": 6 },
+    { "role": "user", "content": "Qué bueno que exista el tata. ¿Qué te parecería si esta semana yo te acompaño a hablar con la orientadora, la profe Paz? Yo me quedo. Y no vamos a llamar a tu mamá sin que tú lo decidas primero.", "turnNumber": 7 },
+    { "role": "assistant", "content": "Uy... me da miedo igual, profe... pero si va conmigo... ya. Igual. Pero lo del tata también podría llamarlo hoy, ¿no? Sí, ya.", "turnNumber": 8 }
+  ],
+  "turnos": [
+    { "turnoId": "t1", "rol": "usuario", "contenido": "Hola Martina...", "deltas": { "intensidadEmocional": -1, "apertura": 1, "confianzaEnLaAyuda": 0 }, "tagsObservados": ["T_02_OBSERVA_NO_JUICIO_S03"], "antiPatronesDetectados": [] },
+    { "turnoId": "t2", "rol": "usuario", "contenido": "Gracias por contarme eso...", "deltas": { "intensidadEmocional": -2, "apertura": 2, "confianzaEnLaAyuda": 0 }, "tagsObservados": ["T_03_ACOGE_VALIDACION_S03", "T_04_ACOGE_PREGUNTA_DIRECTA_S03"], "antiPatronesDetectados": [] },
+    { "turnoId": "t3", "rol": "usuario", "contenido": "Tiene mucho sentido...", "deltas": { "intensidadEmocional": -1, "apertura": 1, "confianzaEnLaAyuda": 1 }, "tagsObservados": ["T_07_SOSTEN_RED_S03"], "antiPatronesDetectados": [] },
+    { "turnoId": "t4", "rol": "usuario", "contenido": "Qué bueno que exista el tata...", "deltas": { "intensidadEmocional": -1, "apertura": 1, "confianzaEnLaAyuda": 2 }, "tagsObservados": ["T_08_SOSTEN_REDES_OFICIALES_S03"], "antiPatronesDetectados": [] }
+  ],
+  "assertions": {
+    "expectedStatus": "ready",
+    "minKeyMoments": 2,
+    "maxKeyMoments": 4,
+    "forbiddenSubstrings": ["puntaje", "aprobado", "reprobado", "%", "nota"],
+    "quoteMustAppearInUserMessages": true,
+    "martinaCueMustAppearInAssistantMessages": true,
+    "wasResumedAfterCrisis": false
+  }
+}

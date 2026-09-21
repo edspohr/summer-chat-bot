@@ -27,6 +27,18 @@ export interface RuntimeConfig {
    * Turn 0 always evaluates.
    */
   evaluatorEveryNTurns: number;
+  /** Fase 4 formative report — model id for the coach_feedback_v1 call. */
+  feedbackModel: string;
+  /** Fase 4 — maxOutputTokens for the feedback model. Holgado. */
+  feedbackMaxOutputTokens: number;
+  /**
+   * Fase 4 — thinkingBudget for the feedback model. Default 1024 (some
+   * reasoning helps quote fidelity). If the response comes back with
+   * finishReason=MAX_TOKENS, the generator retries once with 0.
+   */
+  feedbackThinkingBudget: number;
+  /** Fase 4 — per-request Vertex deadline for the feedback call. */
+  feedbackTimeoutMs: number;
 }
 
 const DEFAULTS: RuntimeConfig = {
@@ -39,6 +51,10 @@ const DEFAULTS: RuntimeConfig = {
   rateLimitEnabled: false,
   crisisBranchingEnabled: false,
   evaluatorEveryNTurns: 1,
+  feedbackModel: "gemini-2.5-flash",
+  feedbackMaxOutputTokens: 4096,
+  feedbackThinkingBudget: 1024,
+  feedbackTimeoutMs: 30_000,
 };
 
 const TTL_MS = 30_000;
@@ -61,6 +77,14 @@ function coerce(raw: unknown): RuntimeConfig {
     typeof rawEvery === "number" && Number.isInteger(rawEvery) && rawEvery >= 1
       ? rawEvery
       : DEFAULTS.evaluatorEveryNTurns;
+  const getStr = (k: "feedbackModel"): string => {
+    const v = raw[k];
+    return typeof v === "string" && v.length > 0 ? v : DEFAULTS[k];
+  };
+  const nonNegInt = (k: "feedbackMaxOutputTokens" | "feedbackThinkingBudget" | "feedbackTimeoutMs"): number => {
+    const v = raw[k];
+    return typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : DEFAULTS[k];
+  };
   return {
     rpm: get("rpm", "number"),
     inactivityNudgeMs: get("inactivityNudgeMs", "number"),
@@ -69,6 +93,10 @@ function coerce(raw: unknown): RuntimeConfig {
     rateLimitEnabled: get("rateLimitEnabled", "boolean"),
     crisisBranchingEnabled: get("crisisBranchingEnabled", "boolean"),
     evaluatorEveryNTurns,
+    feedbackModel: getStr("feedbackModel"),
+    feedbackMaxOutputTokens: nonNegInt("feedbackMaxOutputTokens"),
+    feedbackThinkingBudget: nonNegInt("feedbackThinkingBudget"),
+    feedbackTimeoutMs: nonNegInt("feedbackTimeoutMs"),
   };
 }
 

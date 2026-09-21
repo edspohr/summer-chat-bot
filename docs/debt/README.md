@@ -7,7 +7,7 @@ _Last updated: 2026-09-18 (0013 resolved — dev deploy + smoke test done; 0023,
 | [0001](0001-embedding-sync.md) | Embedding sync — one-time seed doesn't detect modified chunks | medium | open |
 | [0002](0002-vector-search-scale.md) | Firestore vector search untested at scale (>500 chunks) | medium | open |
 | [0003](0003-safety-regex-clinical-validation.md) | Layer 3 regex patterns pending clinical co-validation with Fundación Summer | **high** | open — production blocker |
-| [0004](0004-report-generation-stub.md) | reportGenerator.ts is a stub — real logic depends on pending clinical decisions | medium | open |
+| [0004](0004-report-generation-stub.md) | reportGenerator.ts is a stub — real logic depends on pending clinical decisions | medium | resolved 2026-09-21 (Fase 4 step 2) |
 | [0005](0005-java-path-emulators.md) | Java not in system PATH — Firestore emulator requires manual PATH export | low | open |
 | [0006](0006-knowledge-base-not-seeded.md) | Knowledge base not seeded — Mentor RAG returns empty until Firestore is populated | **high** | partially-resolved — seed script done, needs emulator run + index deploy |
 | [0007](0007-pricing-constants.md) | Pricing constants hardcoded to May 2026 rates — verify before prod launch | low | open |
@@ -31,6 +31,7 @@ _Last updated: 2026-09-18 (0013 resolved — dev deploy + smoke test done; 0023,
 | [0025](0025-adc-hang-no-error.md) | Local admin scripts hang silently when ADC are missing or expired | low | open |
 | [0026](0026-eslint-not-installed.md) | ESLint config exists but the tool is not installed — `react-hooks/rules-of-hooks` is defined but never runs | medium | resolved 2026-09-21 (web only) |
 | [0027](0027-vertexai-class-deprecated.md) | `@google-cloud/vertexai` VertexAI class deprecated (kill date 2026-06-24, past). Migrate to `@google/genai` in Fase 3. | **high** | open |
+| [0028](0028-callb-raw-log-privacy.md) | `callB.ts` logs up to 500 chars of raw JSON on parse failure — may include trainee content | medium | open |
 
 > **Debt 0003 is the highest urgency**: Layer 3 regex patterns are the first line of defense
 > for real crisis detection. Without clinical validation, there is risk of false negatives

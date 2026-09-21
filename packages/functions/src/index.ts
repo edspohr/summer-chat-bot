@@ -1,5 +1,11 @@
 export { mentorChat } from "./mentor/mentorHandler.js";
-export { coachTurn, crisisBranch, endSession, resumeAfterCrisis } from "./coach/coachHandler.js";
+export {
+  coachTurn,
+  crisisBranch,
+  endSession,
+  resumeAfterCrisis,
+  generateSessionReport,
+} from "./coach/coachHandler.js";
 export { inactivityScan } from "./session/inactivityScheduler.js";
 export { analyticsRollupDaily } from "./analytics/rollupScheduler.js";
 

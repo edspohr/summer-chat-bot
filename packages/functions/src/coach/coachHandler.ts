@@ -25,6 +25,7 @@ import { applyMatrixDelta, persistMatrixUpdate, readMatrixState } from "./matrix
 import { INITIAL_ESTADO_MATRIZ } from "./matrixConstants.js";
 import { maybeStartTimer, computeTimerState } from "../session/timerService.js";
 import { checkSessionAccess } from "../session/accessCheck.js";
+import { generateFormativeReportForSession } from "../session/reportGenerator.js";
 import { createSessionManager } from "../session/sessionManager.js";
 import { checkAndConsume } from "./rateLimiter.js";
 import { CRISIS_META_v0 } from "./crisisBranchContent.js";
@@ -538,6 +539,49 @@ export const endSession = onCall(
     await sessionManager.completeSession(sessionId);
     return { success: true, alreadyClosed: false, state: "closed_completed" };
   }
+);
+
+// Fase 4 — formative feedback report generation. Idempotent (transaction
+// on formativeReport.status inside the generator). Fires from SessionClosingScreen
+// as a prefetch and from /report as a blocking fallback. Never throws to the
+// client — always returns the current formativeReport envelope, even if
+// generation failed or was skipped.
+const GenerateSessionReportRequestSchema = z.object({
+  sessionId: z.string(),
+});
+
+export const generateSessionReport = onCall(
+  {
+    region: "southamerica-west1",
+    invoker: "public",
+    // Feedback generation can take 5-15s. Cap generously; the generator's
+    // own retryOnQuota already applies a per-request timeout.
+    timeoutSeconds: 60,
+    memory: "512MiB",
+  },
+  async (request: CallableRequest) => {
+    const userId = request.auth?.uid;
+    if (userId === undefined) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
+    const parsed = GenerateSessionReportRequestSchema.safeParse(request.data);
+    if (!parsed.success) {
+      throw new HttpsError("invalid-argument", "Invalid request data");
+    }
+    const { sessionId } = parsed.data;
+    // Owner check BEFORE any generation work (design point 12).
+    const snap = await db.collection("sessions").doc(sessionId).get();
+    if (!snap.exists) {
+      throw new HttpsError("not-found", "Session not found");
+    }
+    const data = snap.data() as { userId?: string };
+    if (data.userId !== userId) {
+      throw new HttpsError("permission-denied", "You do not own this session");
+    }
+    // Generation itself never throws — always returns a valid envelope.
+    const result = await generateFormativeReportForSession(sessionId);
+    return { report: result.report, didWork: result.didWork };
+  },
 );
 
 // ── Phase 4 (A7) — crisis pedagogical branch ──────────────────────────────
