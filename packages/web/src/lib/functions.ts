@@ -55,6 +55,11 @@ export interface CoachTurnResponse {
   estadoMatriz: EstadoMatriz | null;
   timerState: TimerState | null;
   latenciaMs: { personaje: number; evaluador: number; total: number } | null;
+  // Server refused to process the turn because the session is no longer in
+  // an active state. Client should transition to the closing screen (for
+  // closed_*) or ensure the crisis overlay is showing (for crisis_interrupted).
+  sessionClosed?: boolean;
+  closedState?: "closed_inactivity" | "closed_completed" | "crisis_interrupted";
   // Phase 3 — populated when the server-side token bucket rejected this turn.
   // Client should show a friendly toast and not append any assistant reply.
   rateLimited?: boolean;
@@ -85,10 +90,21 @@ export interface EndSessionResponse {
   state: string | null;
 }
 
+export interface ResumeAfterCrisisRequest {
+  sessionId: string;
+}
+export interface ResumeAfterCrisisResponse {
+  success: boolean;
+  alreadyActive: boolean;
+  state: string | null;
+}
+
 export const callMentorChat = getCallable<MentorChatRequest, MentorChatResponse>("mentorChat");
 export const callCoachTurn = getCallable<CoachTurnRequest, CoachTurnResponse>("coachTurn");
 export const callCrisisBranch = getCallable<CrisisBranchRequest, CrisisBranchResponse>("crisisBranch");
 export const callEndSession = getCallable<EndSessionRequest, EndSessionResponse>("endSession");
+export const callResumeAfterCrisis =
+  getCallable<ResumeAfterCrisisRequest, ResumeAfterCrisisResponse>("resumeAfterCrisis");
 
 // ── Latency Lab (dev-only) ─────────────────────────────────────────────────
 

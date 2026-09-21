@@ -10,7 +10,7 @@ import type {
   CrisisBranchId,
 } from "@salvador/shared";
 import { MARTINA_INITIAL_MATRIX, initialMatrixFor } from "@salvador/shared";
-import { callCoachTurn, callCrisisBranch } from "../lib/functions.js";
+import { callCoachTurn, callCrisisBranch, callResumeAfterCrisis } from "../lib/functions.js";
 import { db } from "../firebase.js";
 
 interface LocalMessage {
@@ -53,10 +53,20 @@ export function useCoachSession(
   isLoading: boolean;
   crisisTemplate: string | null;
   clearCrisis: () => void;
+  /** Confirms the crisis pause with the server; only then does the overlay
+   *  clear locally. If the server call fails the local state is untouched so
+   *  the trainee can retry. */
+  resumeCrisis: () => Promise<boolean>;
   estadoMatriz: EstadoMatriz | null;
   timerState: TimerState | null;
-  /** True once the server-side inactivity scheduler closed the session. */
-  closedByInactivity: boolean;
+  /** Latest terminal server state: 'closed_inactivity', 'closed_completed'
+   *  or 'crisis_interrupted'. Sourced from the Firestore listener and from
+   *  coachTurn's sessionClosed response. `null` while the session is active. */
+  serverClosedState:
+    | "closed_inactivity"
+    | "closed_completed"
+    | "crisis_interrupted"
+    | null;
   latenciaMs: { personaje: number; evaluador: number; total: number } | null;
   rateLimit: RateLimitInfo | null;
   clearRateLimit: () => void;
@@ -92,7 +102,9 @@ export function useCoachSession(
     modo === "escenario" ? canonicalInitial : null,
   );
   const [timerState, setTimerState] = useState<TimerState | null>(null);
-  const [closedByInactivity, setClosedByInactivity] = useState(false);
+  const [serverClosedState, setServerClosedState] = useState<
+    "closed_inactivity" | "closed_completed" | "crisis_interrupted" | null
+  >(null);
   const [latenciaMs, setLatenciaMs] = useState<{ personaje: number; evaluador: number; total: number } | null>(null);
   const [rateLimit, setRateLimit] = useState<RateLimitInfo | null>(null);
   const [crisisMeta, setCrisisMeta] = useState<CrisisMeta | null>(null);
@@ -141,18 +153,26 @@ export function useCoachSession(
     return unsub;
   }, [sessionId, sessionCreated]);
 
-  // Realtime listener for session-level state transitions. When the inactivity
-  // scheduler closes the session (state='closed_inactivity'), the UI switches
-  // to the closing screen. No auto-navigate: the user needs a click to reach
-  // the report so they can read what happened.
+  // Realtime listener for session-level state transitions. Watches
+  // closed_inactivity + closed_completed (both drive the closing screen) and
+  // crisis_interrupted (kept for the resume flow — the overlay itself is
+  // toggled by crisisTemplate). No auto-navigate: any transition to a
+  // terminal state requires an explicit click to reach the report.
   useEffect(() => {
     if (!sessionCreated) return;
     const unsub = onSnapshot(doc(db, "sessions", sessionId), (snap) => {
       const data = snap.data();
       if (data === undefined) return;
       const state = (data as { state?: string }).state;
-      if (state === "closed_inactivity") {
-        setClosedByInactivity(true);
+      if (
+        state === "closed_inactivity" ||
+        state === "closed_completed" ||
+        state === "crisis_interrupted"
+      ) {
+        setServerClosedState(state);
+      } else if (state === "active") {
+        // Resumed from crisis — drop the terminal marker.
+        setServerClosedState(null);
       }
     });
     return unsub;
@@ -221,6 +241,16 @@ export function useCoachSession(
       if (data.timerState !== null) setTimerState(data.timerState);
       if (data.latenciaMs !== null) setLatenciaMs(data.latenciaMs);
 
+      // Server refused to process because the session is no longer active.
+      // Roll back the optimistic user message so it doesn't dangle above the
+      // closing screen, and mark the terminal state.
+      if (data.sessionClosed === true) {
+        setMessages((prev) => prev.filter((m) => m !== userMsg));
+        if (data.closedState !== undefined) setServerClosedState(data.closedState);
+        setIsLoading(false);
+        return false;
+      }
+
       if (data.reply === null) {
         setIsLoading(false);
         return true;
@@ -267,6 +297,30 @@ export function useCoachSession(
     setCrisisMeta(null);
     setCrisisBranchOutcome(null);
   }, []);
+
+  const resumeCrisis = useCallback(async (): Promise<boolean> => {
+    try {
+      const result = await callResumeAfterCrisis({ sessionId });
+      if (result.data.success !== true) {
+        console.warn(
+          "[RESUME_CRISIS] Server refused resume — session state is",
+          result.data.state
+        );
+        return false;
+      }
+    } catch (err) {
+      console.error("[RESUME_CRISIS] Server call failed", err);
+      return false;
+    }
+    // Only clear the overlay after the server confirmed the state flip.
+    // The Firestore listener will also see state=active and clear serverClosedState.
+    setCrisisTemplate(null);
+    setCrisisMeta(null);
+    setCrisisBranchOutcome(null);
+    setServerClosedState(null);
+    return true;
+  }, [sessionId]);
+
   const clearRateLimit = useCallback(() => setRateLimit(null), []);
 
   const chooseCrisisBranch = useCallback(async (branch: CrisisBranchId) => {
@@ -286,9 +340,10 @@ export function useCoachSession(
     isLoading,
     crisisTemplate,
     clearCrisis,
+    resumeCrisis,
     estadoMatriz,
     timerState,
-    closedByInactivity,
+    serverClosedState,
     latenciaMs,
     rateLimit,
     clearRateLimit,

@@ -12,6 +12,7 @@ import {
   type SafetyClassification,
 } from "@salvador/shared";
 import { db } from "../config/firebase.js";
+import { FieldValue } from "firebase-admin/firestore";
 import { loadRuntimeConfig } from "../config/runtimeConfig.js";
 import { runSafetyPipeline } from "../safety/safetyPipeline.js";
 import { classifyMessage } from "../safety/llmClassifier.js";
@@ -23,6 +24,7 @@ import { accumulateTags } from "./tagAccumulator.js";
 import { applyMatrixDelta, persistMatrixUpdate, readMatrixState } from "./matrixEngine.js";
 import { INITIAL_ESTADO_MATRIZ } from "./matrixConstants.js";
 import { maybeStartTimer, computeTimerState } from "../session/timerService.js";
+import { checkSessionAccess } from "../session/accessCheck.js";
 import { createSessionManager } from "../session/sessionManager.js";
 import { checkAndConsume } from "./rateLimiter.js";
 import { CRISIS_META_v0 } from "./crisisBranchContent.js";
@@ -150,10 +152,39 @@ export const coachTurn = onCall(
       cohortCode: cohortCode ?? null,
     });
 
+    // Owner + state gate. createSession is idempotent, so it may have returned
+    // early on a pre-existing doc — the doc might belong to another user, be
+    // closed, or be crisis_interrupted. In any of those cases we do NOT touch
+    // nudgeState/lastUserActivityAt and we do NOT call Gemini.
+    const sessionSnap = await db.collection("sessions").doc(sessionId).get();
+    const sessionSlice = sessionSnap.exists
+      ? (sessionSnap.data() as { userId?: string; state?: string } | undefined) ?? null
+      : null;
+    const access = checkSessionAccess(sessionSlice, userId);
+    if (access.kind === "wrong-owner") {
+      throw new HttpsError("permission-denied", "You do not own this session");
+    }
+    if (access.kind === "closed" || access.kind === "crisis-interrupted") {
+      const closedState =
+        access.kind === "closed" ? access.state : "crisis_interrupted";
+      return {
+        reply: null,
+        safe: true,
+        safetyLayer: null,
+        frameBreakSuspected: false,
+        tagUpdates: 0,
+        estadoMatriz: null,
+        timerState: null,
+        latenciaMs: null,
+        sessionClosed: true,
+        closedState,
+      };
+    }
+
     // Phase 3 activity tracking — mark this user turn and reset the nudge
     // window. Idempotent; runs on every turn including crisis / rate-limited.
-    // (We reach here only if rate limit passed, so this always corresponds to
-    // a real trainee action.)
+    // (We reach here only if rate limit passed AND the session is active, so
+    // this always corresponds to a real trainee action.)
     await sessionManager.updateLastUserActivity(sessionId);
 
     // Safety pipeline runs FIRST (of anything user-visible) — before any LLM
@@ -420,6 +451,55 @@ export const coachTurn = onCall(
 // timerOverride callable removed 2026-09-20: sessions no longer have a hard
 // cutoff, so there is nothing to override. The `cronometroAnulado` field on
 // the session doc is preserved (harmless) but never read.
+
+// Explicit resume from a crisis_interrupted state. Called by the CrisisOverlay
+// "Estoy listo/a para retomar" button. Owner-checked. Idempotent: if the
+// session is already active it returns success without a write; if the session
+// is in any other closed state, it does NOT reopen it (only crisis_interrupted
+// is resumable via this path).
+const ResumeAfterCrisisRequestSchema = z.object({
+  sessionId: z.string(),
+});
+
+export const resumeAfterCrisis = onCall(
+  { region: "southamerica-west1", invoker: "public" },
+  async (request: CallableRequest) => {
+    const userId = request.auth?.uid;
+    if (userId === undefined) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
+    const parsed = ResumeAfterCrisisRequestSchema.safeParse(request.data);
+    if (!parsed.success) {
+      throw new HttpsError("invalid-argument", "Invalid request data");
+    }
+    const { sessionId } = parsed.data;
+    const sessionRef = db.collection("sessions").doc(sessionId);
+    const snap = await sessionRef.get();
+    if (!snap.exists) {
+      throw new HttpsError("not-found", "Session not found");
+    }
+    const data = snap.data() as { userId?: string; state?: string };
+    if (data.userId !== userId) {
+      throw new HttpsError("permission-denied", "You do not own this session");
+    }
+    if (data.state === "active") {
+      return { success: true, alreadyActive: true, state: "active" };
+    }
+    if (data.state !== "crisis_interrupted") {
+      // Any other terminal state (closed_inactivity, closed_completed) is not
+      // resumable — the participant should start a new scenario.
+      return { success: false, alreadyActive: false, state: data.state ?? null };
+    }
+    await sessionRef.update({
+      state: "active",
+      resumedAt: FieldValue.serverTimestamp(),
+      // Fresh inactivity window from the moment the participant confirmed.
+      nudgeState: "none",
+      lastUserActivityAt: FieldValue.serverTimestamp(),
+    });
+    return { success: true, alreadyActive: false, state: "active" };
+  }
+);
 
 // User-initiated session end. Marks the session state so analytics can tell
 // user_ended sessions apart from ones the inactivity scheduler closed.

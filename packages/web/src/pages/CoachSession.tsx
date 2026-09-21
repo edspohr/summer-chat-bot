@@ -200,10 +200,10 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
     send,
     isLoading,
     crisisTemplate,
-    clearCrisis,
+    resumeCrisis,
     estadoMatriz,
     timerState,
-    closedByInactivity,
+    serverClosedState,
     latenciaMs,
     rateLimit,
     clearRateLimit,
@@ -284,15 +284,17 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
 
   const goHome = useCallback(() => navigate("/inicio"), [navigate]);
 
-  // Closing-screen orchestration. Priority: inactivity (server-driven) always
-  // wins; user_ended is set locally after the confirmation button.
+  // Closing-screen orchestration. `serverClosedState` covers three paths:
+  //   closed_inactivity (scheduler)  → PRO-03 with "inactivity" copy.
+  //   closed_completed  (endSession) → PRO-03 with "user_ended" copy.
+  //   crisis_interrupted             → keep the crisis overlay path; no PRO-03.
   const [closingReason, setClosingReason] =
     useState<"inactivity" | "user_ended" | null>(null);
   useEffect(() => {
-    if (closedByInactivity && closingReason === null) {
-      setClosingReason("inactivity");
-    }
-  }, [closedByInactivity, closingReason]);
+    if (closingReason !== null) return;
+    if (serverClosedState === "closed_inactivity") setClosingReason("inactivity");
+    else if (serverClosedState === "closed_completed") setClosingReason("user_ended");
+  }, [serverClosedState, closingReason]);
 
   // "Terminar sesión" flow: below the 5-minute threshold, ask before ending.
   const [showEndConfirm, setShowEndConfirm] = useState(false);
@@ -382,7 +384,7 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
       {crisisTemplate !== null && (
         <CrisisOverlay
           template={crisisTemplate}
-          onConfirmResume={clearCrisis}
+          onConfirmResume={() => void resumeCrisis()}
           canResume={true}
           crisisMeta={crisisMeta}
           onChooseBranch={chooseCrisisBranch}
