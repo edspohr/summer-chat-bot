@@ -1,8 +1,8 @@
-import type { SafetyTemplate } from "@salvador/shared";
+import { PRODUCT_NAME, type SafetyTemplate } from "@salvador/shared";
 
 export const TEMPLATE_REAL_DISTRESS_v1 = `Lo que escribiste me importa, y no quiero pasar de largo.
 
-Salvador es una herramienta de entrenamiento, no un servicio clínico. No puedo acompañarte en una crisis real, pero hay personas que sí pueden, ahora mismo, y son gratis:
+${PRODUCT_NAME} es una herramienta de entrenamiento, no un servicio clínico. No puedo acompañarte en una crisis real, pero hay personas que sí pueden, ahora mismo, y son gratis:
 
 • hablemosdetodo.injuv.gob.cl — chat anónimo para personas de 15 a 29 años, atendido por psicólogos. Lunes a viernes 10:00–21:00, sábados 11:00–17:00.
 
@@ -14,11 +14,11 @@ Salvador es una herramienta de entrenamiento, no un servicio clínico. No puedo 
 
 Llama, escribe, manda mensaje. Lo que sientes hoy puede cambiar, y no tienes que hacerlo solo o sola.
 
-Esta sesión de Salvador queda en pausa. Cuando estés en condiciones, podrás reanudarla más adelante.`;
+Esta sesión de ${PRODUCT_NAME} queda en pausa. Cuando estés en condiciones, podrás reanudarla más adelante.`;
 
 export const TEMPLATE_FRAME_BREAK_v1 = `Hace un momento sentí que ya no estabas dentro del ejercicio, sino contándome algo tuyo. Si me equivoco, perdona la pausa.
 
-Si no me equivoco, prefiero detenernos un momento y decirte algo importante: Salvador es una herramienta de entrenamiento. No puedo cuidar bien una conversación que ya no es de práctica.
+Si no me equivoco, prefiero detenernos un momento y decirte algo importante: ${PRODUCT_NAME} es una herramienta de entrenamiento. No puedo cuidar bien una conversación que ya no es de práctica.
 
 Pero hay espacios que sí pueden:
 

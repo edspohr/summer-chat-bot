@@ -1,7 +1,16 @@
 # Documento de Arquitectura Inicial — Chatbot Salvador
 ## Fundación Summer · Primeros Auxilios Emocionales · Prevención del Suicidio
 
-**Proyecto**: Salvador  
+> **Nombre de producto**: el nombre visible al participante es **Summer ChatBot**
+> (fuente única: `PRODUCT_NAME` en `@salvador/shared`). "Salvador" es solo el
+> nombre interno del repositorio y permanece en identificadores de código
+> (`@salvador/*` packages, símbolos TypeScript, colecciones Firestore). Nunca
+> debe aparecer "Salvador" en un string visible al usuario. Grep de control:
+> `grep -rn "[Ss]alvador" packages/{web,functions,shared}/src` no debe devolver
+> nada fuera de `@salvador/`, `salvador.cohortCode` (localStorage key), o el
+> prompt del Layer 2 classifier (debt-0024).
+
+**Proyecto** (nombre interno de repo): Salvador  
 **Cliente**: Fundación Summer (Chile)  
 **Autor técnico**: Edmundo Spohr · Growth Buddies SpA  
 **Fecha**: Mayo 2026  
