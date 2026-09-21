@@ -297,12 +297,14 @@ async function exportSession(sessionId: string, label: string): Promise<void> {
 
 // ── LabChat page ───────────────────────────────────────────────────────────
 
+// Outer resolver: only owns the auth/admin gate. All Lab-specific hooks live
+// inside `LabChatInner`, so the hook count of THIS component is stable across
+// renders (previous bug: an early `return` for the deny screen sat between
+// two groups of hooks and violated rules-of-hooks — React error #300 in prod).
 export default function LabChat() {
   const { loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const adminRole = useAdminRole();
-
-  const accessChecked = adminRole.status === "authenticated" && adminRole.isAdmin;
 
   // Deny reason surfaces briefly before the redirect so a curious participant
   // who lands on /lab knows why they got sent back, instead of just teleporting
@@ -333,19 +335,36 @@ export default function LabChat() {
   }, [authLoading, adminRole, navigate]);
 
   if (denyReason !== null) {
-    return (
-      <main className="min-h-screen flex items-center justify-center bg-warm-bg px-6">
-        <div className="max-w-sm bg-white rounded-3xl shadow-xl border border-stone-100 p-8 text-center space-y-4">
-          <h2 className="font-title uppercase tracking-wide text-stone-800 text-base">
-            Acceso restringido
-          </h2>
-          <p className="font-secondary text-sm text-stone-600 leading-relaxed">
-            {denyReason}
-          </p>
-        </div>
-      </main>
-    );
+    return <AccessDenied reason={denyReason} />;
   }
+  if (adminRole.status === "authenticated" && adminRole.isAdmin) {
+    return <LabChatInner />;
+  }
+  return (
+    <main className="min-h-screen flex items-center justify-center bg-warm-bg">
+      <p className="text-stone-400 text-sm font-secondary">Cargando…</p>
+    </main>
+  );
+}
+
+function AccessDenied({ reason }: { reason: string }) {
+  return (
+    <main className="min-h-screen flex items-center justify-center bg-warm-bg px-6">
+      <div className="max-w-sm bg-white rounded-3xl shadow-xl border border-stone-100 p-8 text-center space-y-4">
+        <h2 className="font-title uppercase tracking-wide text-stone-800 text-base">
+          Acceso restringido
+        </h2>
+        <p className="font-secondary text-sm text-stone-600 leading-relaxed">
+          {reason}
+        </p>
+      </div>
+    </main>
+  );
+}
+
+// LabChatInner is only mounted after the outer `LabChat` resolved the admin
+// gate. Auth is guaranteed loaded here, so no local authLoading state.
+function LabChatInner() {
 
   // ── Session state ────────────────────────────────────────────────────────
 
@@ -571,14 +590,6 @@ export default function LabChat() {
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
-
-  if (authLoading || !accessChecked) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <span className="text-sm text-gray-500">Verificando acceso...</span>
-      </div>
-    );
-  }
 
   const scenarioDisabled = mode === "mentor";
   const matiasDisabled = mode === "coach_context";

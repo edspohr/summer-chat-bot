@@ -23,14 +23,18 @@ function segmentContent(content: string): Segment[] {
 
   // When speech follows a direction, the model sometimes leaves the sentence
   // terminator that would have preceded the bracket right at the start of the
-  // next chunk (". Ahí, nomás."). Strip a lone leading period/comma/semicolon
-  // when it directly follows a direction segment.
+  // next chunk (". Ahí, nomás."). Strip a SINGLE lone leading terminator when
+  // it directly follows a direction segment. Do NOT touch ellipses ("...",
+  // "..") nor "…" (U+2026) — those are part of Martina's hesitation and
+  // deliberately preserved.
   function pushSpeech(text: string): void {
     let cleaned = text.trim();
     if (cleaned.length === 0) return;
     const prev = parts[parts.length - 1];
     if (prev?.kind === "direction") {
-      cleaned = cleaned.replace(/^[.,;:]+\s+/, "");
+      // `.(?!\.)` ensures the leading char is a single period, not the head of
+      // an ellipsis; the class covers `. , ; :` — all valid sentence enders.
+      cleaned = cleaned.replace(/^(?:\.(?!\.)|[,;:])\s+/, "");
     }
     if (cleaned.length > 0) parts.push({ kind: "speech", text: cleaned });
   }

@@ -28,8 +28,7 @@ import { db } from "../config/firebase.js";
 import { loadRuntimeConfig } from "../config/runtimeConfig.js";
 import { createSessionManager } from "./sessionManager.js";
 
-const NUDGE_CONTENT = "¿Profe, sigue ahí?";
-const NUDGE_PROMPT_VERSION = "coach_conversational_v1";
+import { buildNudgeMessageArgs } from "./nudgeMessage.js";
 
 async function processSession(
   sessionId: string,
@@ -58,16 +57,7 @@ async function processSession(
 
   if (idleMs >= nudgeThresholdMs && (nudgeState === "none" || nudgeState === null)) {
     const sessionManager = createSessionManager();
-    // The nudge counts as an assistant turn. turnNumber = turnCount + 1 keeps
-    // the message subcollection monotonic; the user's next reply increments
-    // turnCount naturally through appendMessage.
-    await sessionManager.appendMessage({
-      sessionId,
-      role: "assistant",
-      content: NUDGE_CONTENT,
-      turnNumber: turnCount + 1,
-      promptVersion: NUDGE_PROMPT_VERSION,
-    });
+    await sessionManager.appendMessage(buildNudgeMessageArgs(sessionId, turnCount));
     await db.collection("sessions").doc(sessionId).update({ nudgeState: "sent" });
     return "nudged";
   }

@@ -29,6 +29,7 @@ _Last updated: 2026-09-18 (0013 resolved — dev deploy + smoke test done; 0023,
 | [0023](0023-firebase-functions-v7-http-discovery.md) | firebase-functions@7 HTTP discovery hangs on this env — must use `FIREBASE_FUNCTIONS_DISCOVERY_OUTPUT_PATH=true` | low | workaround-in-use |
 | [0024](0024-llmclassifier-product-name.md) | `safety/llmClassifier.ts` Layer 2 prompt still says "Salvador" — deferred until Layer 2 safety fixtures exist | low | open |
 | [0025](0025-adc-hang-no-error.md) | Local admin scripts hang silently when ADC are missing or expired | low | open |
+| [0026](0026-eslint-not-installed.md) | ESLint config exists but the tool is not installed — `react-hooks/rules-of-hooks` is defined but never runs | medium | open |
 
 > **Debt 0003 is the highest urgency**: Layer 3 regex patterns are the first line of defense
 > for real crisis detection. Without clinical validation, there is risk of false negatives
