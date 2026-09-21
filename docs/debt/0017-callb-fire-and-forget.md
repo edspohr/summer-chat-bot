@@ -36,6 +36,14 @@ which killed the conversational flow. Fire-and-forget reduces perceived latency 
   surfaced to the user. Acceptable for the formative demo; not acceptable for a
   production audit trail.
 
+- **Turn evaluations were ALSO getting lost to strict schema validation,
+  independently of GC.** Baseline v0 showed 13/82 turns dropped, and the last 30 days of
+  dev coachTurn logs showed 69/351 turns landing in EMPTY_OUTPUT — because flash-lite
+  intermittently omits non-essential fields (e.g. `observed_behaviors`, `justification`)
+  on individual tags, and `EvaluatorRawOutputSchema.safeParse` rejected the whole payload.
+  Fixed 2026-09-21 by `callBParse.ts` (tolerant per-tag parsing that keeps `matrixDelta`
+  and the valid tags even when a single tag is short a field). The GC loss remains open.
+
 - **Crisis path is unaffected.** Safety pipeline (Layer 3 regex + Layer 2 LLM classifier)
   runs synchronously before Call B fires. If a crisis is detected, the function returns
   immediately with the crisis template and never reaches the fire-and-forget block.

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { retryOnQuota } from "./vertexRetry.js";
+import { retryOnQuota, withTimeout, VertexRequestTimeoutError } from "./vertexRetry.js";
 
 describe("retryOnQuota", () => {
   it("returns immediately on first success", async () => {
@@ -47,4 +47,58 @@ describe("retryOnQuota", () => {
     await expect(retryOnQuota(fn, { maxAttempts: 3 })).rejects.toThrow("still busy");
     expect(fn).toHaveBeenCalledTimes(3);
   }, 10_000);
+
+  it("rejects with VertexRequestTimeoutError when a request never resolves within timeoutMs", async () => {
+    const fn = vi.fn(() => new Promise(() => { /* never resolves */ }));
+    await expect(
+      retryOnQuota(fn, { maxAttempts: 1, timeoutMs: 30 })
+    ).rejects.toBeInstanceOf(VertexRequestTimeoutError);
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries a timeout and succeeds on the next attempt", async () => {
+    let call = 0;
+    const fn = vi.fn(() =>
+      new Promise<string>((resolve, reject) => {
+        call += 1;
+        if (call === 1) {
+          // First attempt hangs long enough to trip the 30ms deadline
+          setTimeout(() => reject(new Error("never")), 200);
+        } else {
+          resolve("ok");
+        }
+      })
+    );
+    const result = await retryOnQuota(fn, { maxAttempts: 3, timeoutMs: 30, label: "test" });
+    expect(result).toBe("ok");
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries when the SDK surfaces UND_ERR_HEADERS_TIMEOUT via the message", async () => {
+    const fn = vi.fn()
+      .mockRejectedValueOnce(new Error("fetch failed: UND_ERR_HEADERS_TIMEOUT"))
+      .mockResolvedValueOnce("ok");
+    const result = await retryOnQuota(fn);
+    expect(result).toBe("ok");
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("withTimeout", () => {
+  it("resolves with the inner value when it settles first", async () => {
+    const result = await withTimeout(Promise.resolve(42), 1000, "unit");
+    expect(result).toBe(42);
+  });
+
+  it("rejects with VertexRequestTimeoutError when the timer fires first", async () => {
+    const p = new Promise<never>(() => { /* never */ });
+    await expect(withTimeout(p, 20, "unit")).rejects.toBeInstanceOf(
+      VertexRequestTimeoutError,
+    );
+  });
+
+  it("clears the timer once the inner promise rejects", async () => {
+    const err = new Error("real error");
+    await expect(withTimeout(Promise.reject(err), 1000, "unit")).rejects.toBe(err);
+  });
 });

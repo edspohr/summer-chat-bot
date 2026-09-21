@@ -368,7 +368,7 @@ export const coachTurn = onCall(
             lastTurns: conversationHistory,
             mode: "coach",
           }),
-          { maxAttempts: 2, label: "l2FrameBreak" },
+          { maxAttempts: 2, label: "l2FrameBreak", timeoutMs: 15_000 },
         );
       } catch (err) {
         console.error("[SAFETY L2] frame-break classifier failed — conservative fallback to D", err);

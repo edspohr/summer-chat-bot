@@ -168,12 +168,15 @@ export async function runCallA(
     generationConfig: CALL_A_GENERATION_CONFIG,
   });
 
+  // 20s per-attempt deadline; two Vertex calls in Fase 2 baseline hung ~5min
+  // before Node's headers timeout fired. Baseline p90 is ~1.8s, so 20s is a
+  // comfortable ceiling that still catches wedged connections early.
   const streamed = await retryOnQuota(
     async () => {
       const streamResult = await model.generateContentStream(input.traineeMessage);
       return collectStream(streamResult.stream);
     },
-    { label: "callA" },
+    { label: "callA", timeoutMs: 20_000 },
   );
 
   const latencyMs = Date.now() - callStart;
