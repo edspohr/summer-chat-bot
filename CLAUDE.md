@@ -115,9 +115,21 @@ pnpm --filter @salvador/web dev
 
 firebase emulators:start              # Firestore + Functions + Auth emulados
 
-# Deploy — el prefijo FIREBASE_FUNCTIONS_DISCOVERY_OUTPUT_PATH=true es obligatorio
-# desde el bump a firebase-functions@7 (ver docs/debt/0023). Sin él, la CLI cuelga
-# la discovery HTTP y falla con "User code failed to load. Timeout after 10000".
+# DEPLOY — regla dura (2026-09-21).
+# 1) Un solo deploy a la vez. Nunca dos deploys concurrentes al mismo proyecto:
+#    los prompts interactivos se cruzan y el que responde después sobrescribe.
+# 2) Los deploys los corre SIEMPRE el dueño del entorno desde su terminal.
+#    Ni Claude Code ni un agente asistente ejecuta `firebase deploy` a dev o prod.
+#    (Precedente: 2026-09-21 — un deploy asistido y uno del owner corrieron en
+#    paralelo, el owner esperó el prompt una hora, y al aceptar sobrescribió
+#    6 funciones con un paquete anterior al commit corriente.)
+# 3) Nunca dejar un `firebase deploy` esperando un prompt interactivo. Si hay
+#    prompts que aceptar (eliminaciones huérfanas), pasar `--force` y saber
+#    de antemano qué se elimina — o cancelar y re-planear.
+# 4) El prefijo FIREBASE_FUNCTIONS_DISCOVERY_OUTPUT_PATH=true es obligatorio
+#    desde el bump a firebase-functions@7 (ver docs/debt/0023). Sin él, la
+#    CLI cuelga la discovery HTTP y falla con "User code failed to load.
+#    Timeout after 10000".
 FIREBASE_FUNCTIONS_DISCOVERY_OUTPUT_PATH=true firebase deploy --only functions --project summer-chatbot-dev
 FIREBASE_FUNCTIONS_DISCOVERY_OUTPUT_PATH=true firebase deploy --only hosting   --project summer-chatbot-dev
 FIREBASE_FUNCTIONS_DISCOVERY_OUTPUT_PATH=true firebase deploy                  --project summer-chatbot-dev   # todo, review manual
