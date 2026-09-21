@@ -14,7 +14,6 @@ export interface SessionTimerHookResult {
   phase: TimerPhase;
   displayMmSs: string;
   elapsedSeconds: number;
-  cronometroAnulado: boolean;
   syncFromServer: (timerState: TimerState) => void;
 }
 
@@ -36,7 +35,6 @@ export function useSessionTimer(
   onWarning: (at: "5min" | "15min") => void,
 ): SessionTimerHookResult {
   const [serverStartIso, setServerStartIso] = useState<string | null>(null);
-  const [anulado, setAnulado] = useState(false);
   const firedWarnings = useRef<Set<string>>(new Set());
 
   const computeElapsed = useCallback((): number => {
@@ -74,7 +72,6 @@ export function useSessionTimer(
     if (timerState.sesionIniciadaEn !== null) {
       setServerStartIso(timerState.sesionIniciadaEn);
     }
-    setAnulado(timerState.cronometroAnulado);
   }, []);
 
   const phase: TimerPhase = serverStartIso === null ? "idle" : toPhase(elapsed);
@@ -83,7 +80,6 @@ export function useSessionTimer(
     phase,
     displayMmSs: formatMmSs(elapsed),
     elapsedSeconds: elapsed,
-    cronometroAnulado: anulado,
     syncFromServer,
   };
 }

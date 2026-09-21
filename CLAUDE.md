@@ -310,15 +310,32 @@ read initials from the scenario doc.
 Deltas are applied in `packages/functions/src/coach/matrixEngine.ts`.
 Turn-level audit stored in `sessions/{id}/turnos/{turnoId}`.
 
-### Timer rules
+### Timer rules (revised 2026-09-20, Fase 1)
 
-- 10-minute session (600 seconds), starts on **first user turn** (not page load).
-- `sesionIniciadaEn` stored as ISO-8601 string in the session doc.
-- Client derives remaining time from server-provided `sesionIniciadaEn` (no drift accumulation).
-- **The timer does NOT pause on user inactivity** — the 10 minutes are continuous real-world time.
-  This is intentional: it simulates the pressure of a real first-response conversation.
-- Admin override: `cronometroAnulado: true` disables the hard cutoff (soft/advisory in that state).
-- Timer override callable: `timerOverride` Cloud Function (admin role required).
+- **No hard cutoff.** The timer counts up from `sesionIniciadaEn` and is used
+  for display and analytics only. There is no auto-close at N minutes.
+- `sesionIniciadaEn` stored as ISO-8601 string in the session doc; starts on
+  the **first user turn** (not page load). Idempotent via `maybeStartTimer`.
+- Client derives elapsed time from server-provided `sesionIniciadaEn` (no
+  drift accumulation). `TimerState` is now `{sesionIniciadaEn, elapsedSeconds}` —
+  `remainingSeconds` and `cronometroAnulado` were removed.
+- **Session complete threshold**: `SESSION_COMPLETE_AT_SECONDS = 300` (5 min)
+  in `@salvador/shared`. Sessions under 5 minutes prompt a soft "¿seguir o ir
+  al informe igual?" before closing. rollupBuilder + export-pilot-data both
+  read this constant for the "sessions ≥ 5 min" counter.
+- **Session closure paths**:
+  - User-initiated: `endSession` callable (Fase 1) sets `state=closed_completed`,
+    `endedReason=user_ended`. Front-end shows PRO-03 closing screen with
+    "Ver mi informe" and "Volver al inicio".
+  - Inactivity: 2 min silent → Martina writes "¿Profe, sigue ahí?" (nudge);
+    2 more min silent → `inactivityScan` closes the session with
+    `state=closed_inactivity`, `endedReason=inactivity`. Any user turn resets
+    `nudgeState=none`. Master flag `config/runtime.inactivityEnabled` (defaults
+    now `true`).
+- The `cronometroAnulado` field on the session doc is preserved (harmless)
+  but never read. `timerOverride` callable was removed.
+- **The timer does NOT pause on user inactivity** — elapsed is continuous
+  real-world time. The inactivity scheduler is what watches idleness.
 
 ### Mode toggle
 

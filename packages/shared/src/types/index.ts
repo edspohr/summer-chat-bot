@@ -30,13 +30,20 @@ export interface TurnLatency {
   total: number;
 }
 
-// Timer state returned to the client on each coach turn response
+// Timer state returned to the client on each coach turn response.
+// The session has no hard cutoff — the timer counts up from `sesionIniciadaEn`
+// and is used for UI display and analytics only. The concept of "session
+// complete" is defined below (SESSION_COMPLETE_AT_SECONDS).
 export interface TimerState {
   sesionIniciadaEn: string | null; // ISO-8601 UTC or null if not started
   elapsedSeconds: number;
-  remainingSeconds: number; // negative means expired
-  cronometroAnulado: boolean;
 }
+
+// A session is considered "complete" for reporting purposes once it has run
+// at least this long. Under this threshold, the closing screen offers a
+// suave confirmation before showing the report (or nudges the user to try
+// again). Used by rollupBuilder, the pilot data export, and the web UI.
+export const SESSION_COMPLETE_AT_SECONDS = 300 as const;
 
 export interface BuiltPrompt {
   systemPrompt: string;

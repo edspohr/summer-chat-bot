@@ -1,15 +1,13 @@
 import { FieldValue } from "firebase-admin/firestore";
 import type { TimerState } from "@salvador/shared";
+import { SESSION_COMPLETE_AT_SECONDS } from "@salvador/shared";
 import { db } from "../config/firebase.js";
-import { SESSION_DURATION_SECONDS } from "../coach/matrixConstants.js";
 
-// Timer is continuous and real-world — no pause on inactivity per spec decision.
-// See CLAUDE.md section on timer rules.
-
-export interface TimerData {
-  sesionIniciadaEn: string | null;
-  cronometroAnulado: boolean;
-}
+// The session timer counts up from the first user turn. There is no hard
+// cutoff — the 10-minute cap was removed in the Fase 1 sprint (2026-09-20).
+// A session is considered "complete" once elapsed >= SESSION_COMPLETE_AT_SECONDS.
+// The inactivity scheduler (session/inactivityScheduler.ts) is what actually
+// closes sessions; the timer is display-only.
 
 // Mark the session start time on the FIRST user turn.
 // Idempotent: if sesionIniciadaEn is already set, does nothing.
@@ -20,57 +18,32 @@ export async function maybeStartTimer(sessionId: string): Promise<string> {
   const existing = data?.["sesionIniciadaEn"];
 
   if (existing !== null && existing !== undefined) {
-    // Already started — return the stored ISO string
     if (typeof existing === "string") return existing;
-    // Firestore Timestamp — convert to ISO
     const ts = existing as { toDate(): Date };
     return ts.toDate().toISOString();
   }
 
   const now = new Date().toISOString();
-  await sessionRef.set({ sesionIniciadaEn: now }, { merge: true });
+  await sessionRef.set(
+    { sesionIniciadaEn: now, lastActivityAt: FieldValue.serverTimestamp() },
+    { merge: true }
+  );
   return now;
 }
 
 // Compute timer state from the start timestamp (server authoritative).
-export function computeTimerState(
-  sesionIniciadaEn: string | null,
-  cronometroAnulado: boolean,
-): TimerState {
+export function computeTimerState(sesionIniciadaEn: string | null): TimerState {
   if (sesionIniciadaEn === null) {
-    return {
-      sesionIniciadaEn: null,
-      elapsedSeconds: 0,
-      remainingSeconds: SESSION_DURATION_SECONDS,
-      cronometroAnulado,
-    };
+    return { sesionIniciadaEn: null, elapsedSeconds: 0 };
   }
-
-  const startMs = new Date(sesionIniciadaEn).getTime();
-  const elapsedMs = Date.now() - startMs;
-  const elapsedSeconds = Math.floor(elapsedMs / 1000);
-  const remainingSeconds = SESSION_DURATION_SECONDS - elapsedSeconds;
-
+  const elapsedMs = Date.now() - new Date(sesionIniciadaEn).getTime();
   return {
     sesionIniciadaEn,
-    elapsedSeconds,
-    remainingSeconds,
-    cronometroAnulado,
+    elapsedSeconds: Math.floor(elapsedMs / 1000),
   };
 }
 
-// Admin override: disable the hard cutoff for a session.
-// Requires the caller to have already verified admin role.
-export async function overrideTimer(sessionId: string, anular: boolean): Promise<void> {
-  await db
-    .collection("sessions")
-    .doc(sessionId)
-    .set({ cronometroAnulado: anular }, { merge: true });
-}
-
-// Check whether the session has exceeded its time limit.
-// Returns false if cronometroAnulado=true (soft/advisory only).
-export function isTimerExpired(timerState: TimerState): boolean {
-  if (timerState.cronometroAnulado) return false;
-  return timerState.remainingSeconds <= 0;
+// Reporting/UX policy: is this session long enough to count as "complete"?
+export function isSessionComplete(elapsedSeconds: number): boolean {
+  return elapsedSeconds >= SESSION_COMPLETE_AT_SECONDS;
 }

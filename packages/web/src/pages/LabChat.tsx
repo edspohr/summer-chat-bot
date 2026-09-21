@@ -304,6 +304,11 @@ export default function LabChat() {
 
   const accessChecked = adminRole.status === "authenticated" && adminRole.isAdmin;
 
+  // Deny reason surfaces briefly before the redirect so a curious participant
+  // who lands on /lab knows why they got sent back, instead of just teleporting
+  // to /inicio.
+  const [denyReason, setDenyReason] = useState<string | null>(null);
+
   useEffect(() => {
     if (authLoading) return;
     if (adminRole.status === "anonymous") {
@@ -311,14 +316,36 @@ export default function LabChat() {
       return;
     }
     if (adminRole.status === "authenticated" && !adminRole.isAdmin) {
-      navigate("/inicio");
-      return;
+      setDenyReason(
+        "El Latency Lab es una herramienta interna para el equipo. Volviendo al inicio…"
+      );
+      const t = setTimeout(() => navigate("/inicio"), 1800);
+      return () => clearTimeout(t);
     }
     if (adminRole.status === "error") {
-      navigate("/inicio");
-      return;
+      setDenyReason(
+        "No pudimos verificar tu acceso al Latency Lab. Volviendo al inicio…"
+      );
+      const t = setTimeout(() => navigate("/inicio"), 1800);
+      return () => clearTimeout(t);
     }
+    return undefined;
   }, [authLoading, adminRole, navigate]);
+
+  if (denyReason !== null) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-warm-bg px-6">
+        <div className="max-w-sm bg-white rounded-3xl shadow-xl border border-stone-100 p-8 text-center space-y-4">
+          <h2 className="font-title uppercase tracking-wide text-stone-800 text-base">
+            Acceso restringido
+          </h2>
+          <p className="font-secondary text-sm text-stone-600 leading-relaxed">
+            {denyReason}
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   // ── Session state ────────────────────────────────────────────────────────
 

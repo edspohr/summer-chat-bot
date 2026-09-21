@@ -10,6 +10,7 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { db } from "../config/firebase.js";
 import type { RollupDocument, RollupGroup } from "@salvador/shared";
+import { SESSION_COMPLETE_AT_SECONDS } from "@salvador/shared";
 import {
   bucketEndState,
   computeDwellStats,
@@ -217,6 +218,7 @@ export async function buildRollupForDate(dateStr: string): Promise<RollupDocumen
     } else {
       acc.dwellSecondsList.push(dwell.seconds);
       if (dwell.source === "fallback") acc.dwellFallbackCount += 1;
+      if (dwell.seconds >= SESSION_COMPLETE_AT_SECONDS) acc.group.sessionsComplete += 1;
     }
   }
 

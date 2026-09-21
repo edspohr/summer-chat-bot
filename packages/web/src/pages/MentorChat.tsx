@@ -5,6 +5,7 @@ import { useChat } from "../hooks/useChat.js";
 import { ChatBubble } from "../components/ChatBubble.js";
 import { CrisisOverlay } from "../components/CrisisOverlay.js";
 import { HelpButton } from "../components/HelpButton.js";
+import { Composer } from "../components/Composer.js";
 
 const SESSION_ID = crypto.randomUUID();
 
@@ -30,13 +31,6 @@ export default function MentorChat() {
     await send(text);
   }
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void handleSend();
-    }
-  }
-
   return (
     <main className="min-h-screen flex flex-col bg-warm-bg">
       <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full bg-white shadow-xl sm:my-4 sm:rounded-[2.5rem] overflow-hidden border border-stone-100">
@@ -51,9 +45,11 @@ export default function MentorChat() {
       <header className="px-6 py-4 border-b border-stone-100 bg-white flex items-center gap-4 relative z-10 shadow-sm">
         <button
           onClick={() => navigate("/inicio")}
-          className="w-10 h-10 rounded-full flex items-center justify-center text-stone-400 hover:text-summer-blue hover:bg-summer-blue/10 transition-all"
+          className="flex items-center gap-1 px-3 h-10 rounded-full text-stone-500 hover:text-summer-blue hover:bg-summer-blue/10 transition-all text-sm font-secondary"
+          aria-label="Volver al inicio"
         >
-          ←
+          <span aria-hidden="true">←</span>
+          <span>Inicio</span>
         </button>
         <div className="w-12 h-12 rounded-2xl bg-summer-teal/20 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm border border-stone-100">
           <img src="/avatar-mentor.jpg" alt="Summer ChatBot" className="w-full h-full object-cover" />
@@ -96,23 +92,15 @@ export default function MentorChat() {
       </div>
 
       <div className="border-t border-stone-100 bg-white px-6 py-4">
-        <div className="flex gap-3 items-end max-w-3xl mx-auto w-full">
-          <textarea
+        <div className="max-w-3xl mx-auto w-full">
+          <Composer
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Escribe tu pregunta sobre OASIS..."
-            rows={1}
+            onChange={setInput}
+            onSend={() => void handleSend()}
             disabled={isLoading || crisisTemplate !== null}
-            className="flex-1 resize-none rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 font-secondary text-sm focus:outline-none focus:ring-2 focus:ring-summer-teal/50 transition-all disabled:opacity-50"
+            placeholder="Escribe tu pregunta sobre OASIS..."
+            variant="mentor"
           />
-          <button
-            onClick={() => void handleSend()}
-            disabled={isLoading || !input.trim() || crisisTemplate !== null}
-            className="bg-summer-teal hover:bg-teal-400 text-white rounded-2xl p-3 w-12 h-12 flex items-center justify-center shadow-md disabled:opacity-40 transition-all hover:scale-105 active:scale-95"
-          >
-            <span className="text-xl">→</span>
-          </button>
         </div>
       </div>
     </div>

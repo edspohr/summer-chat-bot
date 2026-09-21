@@ -77,4 +77,7 @@ Never output "RESET_ZERO" — use -2 for the most severe negative event.
 import { MARTINA_INITIAL_MATRIX } from "@salvador/shared";
 export const INITIAL_ESTADO_MATRIZ = MARTINA_INITIAL_MATRIX;
 
-export const SESSION_DURATION_SECONDS = 600; // 10 minutes
+// SESSION_DURATION_SECONDS removed 2026-09-20: sessions no longer have a hard
+// cutoff. The "session complete" threshold now lives in @salvador/shared as
+// SESSION_COMPLETE_AT_SECONDS. Session closure is driven by the inactivity
+// scheduler or an explicit end from the user.

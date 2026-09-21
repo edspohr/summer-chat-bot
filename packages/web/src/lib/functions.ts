@@ -54,7 +54,6 @@ export interface CoachTurnResponse {
   tagUpdates: number;
   estadoMatriz: EstadoMatriz | null;
   timerState: TimerState | null;
-  timerExpired?: boolean;
   latenciaMs: { personaje: number; evaluador: number; total: number } | null;
   // Phase 3 — populated when the server-side token bucket rejected this turn.
   // Client should show a friendly toast and not append any assistant reply.
@@ -77,20 +76,19 @@ export interface CrisisBranchResponse {
   feedbackText: string | null;
 }
 
-export interface TimerOverrideRequest {
+export interface EndSessionRequest {
   sessionId: string;
-  anular: boolean;
 }
-
-export interface TimerOverrideResponse {
+export interface EndSessionResponse {
   success: boolean;
-  cronometroAnulado: boolean;
+  alreadyClosed: boolean;
+  state: string | null;
 }
 
 export const callMentorChat = getCallable<MentorChatRequest, MentorChatResponse>("mentorChat");
 export const callCoachTurn = getCallable<CoachTurnRequest, CoachTurnResponse>("coachTurn");
-export const callTimerOverride = getCallable<TimerOverrideRequest, TimerOverrideResponse>("timerOverride");
 export const callCrisisBranch = getCallable<CrisisBranchRequest, CrisisBranchResponse>("crisisBranch");
+export const callEndSession = getCallable<EndSessionRequest, EndSessionResponse>("endSession");
 
 // ── Latency Lab (dev-only) ─────────────────────────────────────────────────
 

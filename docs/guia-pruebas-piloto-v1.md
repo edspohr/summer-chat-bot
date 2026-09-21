@@ -16,7 +16,7 @@ Summer ChatBot es una herramienta de entrenamiento para docentes en primeros aux
 
 La herramienta entrena una metodología llamada **OASIS**, que es un protocolo de primeros auxilios emocionales para situaciones de crisis con estudiantes. No necesitas conocerla para hacer esta prueba — interactúa como lo harías naturalmente.
 
-La simulación dura entre **10 y 15 minutos**. Cuando sientas que llegaste a un buen punto en la conversación (o cuando ya no sepas qué más decir), presiona el botón **"Ir al informe"** que aparece en la parte inferior de la pantalla.
+La simulación **no tiene límite de tiempo**. Considera la sesión "completa" cuando pasen al menos **5 minutos**. Cuando sientas que llegaste a un buen punto (o cuando ya no sepas qué más decir), presiona el botón **"Terminar"** que aparece arriba, y luego **"Ver mi informe"**. Si Martina y tú están 2 minutos sin escribirse, ella preguntará "¿Profe, sigue ahí?"; si pasan otros 2 minutos, la sesión se cierra sola y te lleva al informe.
 
 Después de la simulación, te tomará unos **5 minutos** responder las preguntas al final de este documento.
 
@@ -45,9 +45,9 @@ Después de la simulación, te tomará unos **5 minutos** responder las pregunta
 | Apertura              | Cuánto está dispuesta a hablar. Mejor si sube.     |
 | Confianza en la ayuda | Si cree que alguien puede ayudarla. Mejor si sube. |
 
-**El temporizador** _(arriba a la derecha)_ — Muestra cuánto tiempo llevas en la conversación. No hay límite ni cuenta regresiva.
+**El temporizador** _(arriba a la derecha)_ — Cuenta hacia arriba el tiempo transcurrido. No hay corte duro: la sesión se considera completa a partir de los 5 minutos.
 
-**"Ir al informe →"** _(parte inferior)_ — Presiónalo cuando quieras cerrar la conversación y ver el resultado.
+**"Terminar"** _(al lado del temporizador)_ — Cierra la conversación cuando quieras. Si terminas antes de los 5 minutos, te preguntará si prefieres seguir o ir al informe igual.
 
 ---
 

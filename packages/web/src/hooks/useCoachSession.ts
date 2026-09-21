@@ -55,7 +55,8 @@ export function useCoachSession(
   clearCrisis: () => void;
   estadoMatriz: EstadoMatriz | null;
   timerState: TimerState | null;
-  timerExpired: boolean;
+  /** True once the server-side inactivity scheduler closed the session. */
+  closedByInactivity: boolean;
   latenciaMs: { personaje: number; evaluador: number; total: number } | null;
   rateLimit: RateLimitInfo | null;
   clearRateLimit: () => void;
@@ -91,7 +92,7 @@ export function useCoachSession(
     modo === "escenario" ? canonicalInitial : null,
   );
   const [timerState, setTimerState] = useState<TimerState | null>(null);
-  const [timerExpired, setTimerExpired] = useState(false);
+  const [closedByInactivity, setClosedByInactivity] = useState(false);
   const [latenciaMs, setLatenciaMs] = useState<{ personaje: number; evaluador: number; total: number } | null>(null);
   const [rateLimit, setRateLimit] = useState<RateLimitInfo | null>(null);
   const [crisisMeta, setCrisisMeta] = useState<CrisisMeta | null>(null);
@@ -141,10 +142,9 @@ export function useCoachSession(
   }, [sessionId, sessionCreated]);
 
   // Realtime listener for session-level state transitions. When the inactivity
-  // scheduler closes the session (state='closed_inactivity'), signal expiry so
-  // the trainee UI navigates to the report — same path as timer-based expiry.
-  // We only watch closed_inactivity here; closed_completed already flows via
-  // the coachTurn response (timerExpired flag).
+  // scheduler closes the session (state='closed_inactivity'), the UI switches
+  // to the closing screen. No auto-navigate: the user needs a click to reach
+  // the report so they can read what happened.
   useEffect(() => {
     if (!sessionCreated) return;
     const unsub = onSnapshot(doc(db, "sessions", sessionId), (snap) => {
@@ -152,7 +152,7 @@ export function useCoachSession(
       if (data === undefined) return;
       const state = (data as { state?: string }).state;
       if (state === "closed_inactivity") {
-        setTimerExpired(true);
+        setClosedByInactivity(true);
       }
     });
     return unsub;
@@ -221,13 +221,6 @@ export function useCoachSession(
       if (data.timerState !== null) setTimerState(data.timerState);
       if (data.latenciaMs !== null) setLatenciaMs(data.latenciaMs);
 
-      // Timer expired — don't append reply, just flag it
-      if (data.timerExpired === true) {
-        setTimerExpired(true);
-        setIsLoading(false);
-        return true;
-      }
-
       if (data.reply === null) {
         setIsLoading(false);
         return true;
@@ -295,7 +288,7 @@ export function useCoachSession(
     clearCrisis,
     estadoMatriz,
     timerState,
-    timerExpired,
+    closedByInactivity,
     latenciaMs,
     rateLimit,
     clearRateLimit,

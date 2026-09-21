@@ -1,5 +1,5 @@
 export { mentorChat } from "./mentor/mentorHandler.js";
-export { coachTurn, timerOverride, crisisBranch } from "./coach/coachHandler.js";
+export { coachTurn, crisisBranch, endSession } from "./coach/coachHandler.js";
 export { inactivityScan } from "./session/inactivityScheduler.js";
 export { analyticsRollupDaily } from "./analytics/rollupScheduler.js";
 

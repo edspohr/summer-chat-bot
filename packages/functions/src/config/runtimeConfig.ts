@@ -31,9 +31,11 @@ export interface RuntimeConfig {
 
 const DEFAULTS: RuntimeConfig = {
   rpm: 120,
-  inactivityNudgeMs: 60_000,
-  inactivityCloseMs: 120_000,
-  inactivityEnabled: false,
+  // Fase 1 (2026-09-20): defaults raised from 60s/120s to 120s/240s. Rule
+  // now is 2 min silent → Martina nudge, 2 more min silent → auto-close.
+  inactivityNudgeMs: 120_000,
+  inactivityCloseMs: 240_000,
+  inactivityEnabled: true,
   rateLimitEnabled: false,
   crisisBranchingEnabled: false,
   evaluatorEveryNTurns: 1,

@@ -22,7 +22,7 @@ import { retryOnQuota } from "./vertexRetry.js";
 import { accumulateTags } from "./tagAccumulator.js";
 import { applyMatrixDelta, persistMatrixUpdate, readMatrixState } from "./matrixEngine.js";
 import { INITIAL_ESTADO_MATRIZ } from "./matrixConstants.js";
-import { maybeStartTimer, computeTimerState, isTimerExpired, overrideTimer } from "../session/timerService.js";
+import { maybeStartTimer, computeTimerState } from "../session/timerService.js";
 import { createSessionManager } from "../session/sessionManager.js";
 import { checkAndConsume } from "./rateLimiter.js";
 import { CRISIS_META_v0 } from "./crisisBranchContent.js";
@@ -203,28 +203,9 @@ export const coachTurn = onCall(
       };
     }
 
-    // Start session timer on the first user turn (idempotent).
+    // Start session timer on the first user turn (idempotent). The timer
+    // counts up for display; no hard cutoff.
     const sesionIniciadaEn = await maybeStartTimer(sessionId);
-
-    // Check if time has expired (hard cutoff, unless overridden by admin).
-    const sessionSnap = await db.collection("sessions").doc(sessionId).get();
-    const cronometroAnulado = (sessionSnap.data() as Record<string, unknown>)?.["cronometroAnulado"] === true;
-    const timerState = computeTimerState(sesionIniciadaEn, cronometroAnulado);
-
-    if (isTimerExpired(timerState)) {
-      await sessionManager.completeSession(sessionId);
-      return {
-        reply: null,
-        safe: true,
-        safetyLayer: null,
-        frameBreakSuspected: false,
-        tagUpdates: 0,
-        estadoMatriz: null,
-        timerState,
-        timerExpired: true,
-        latenciaMs: null,
-      };
-    }
 
     // Read current matrix state (for escenario mode only).
     let currentMatrix: EstadoMatriz | null = null;
@@ -392,7 +373,7 @@ export const coachTurn = onCall(
           frameBreakSuspected: true,
           tagUpdates: 0,
           estadoMatriz: currentMatrix,
-          timerState: computeTimerState(sesionIniciadaEn, cronometroAnulado),
+          timerState: computeTimerState(sesionIniciadaEn),
           latenciaMs,
           ...(runtimeConfig.crisisBranchingEnabled ? { crisisMeta: CRISIS_META_v0 } : {}),
         };
@@ -430,40 +411,52 @@ export const coachTurn = onCall(
       frameBreakSuspected: callAResult.frameBreakSuspected && !frameBreakHandled,
       tagUpdates: 0, // unknown at response time — Call B running async
       estadoMatriz: currentMatrix, // matrix updated async; client sees new state next turn
-      timerState: computeTimerState(sesionIniciadaEn, cronometroAnulado),
+      timerState: computeTimerState(sesionIniciadaEn),
       latenciaMs,
     };
   }
 );
 
-// Admin-only callable to override (disable/re-enable) the session timer.
-const TimerOverrideRequestSchema = z.object({
+// timerOverride callable removed 2026-09-20: sessions no longer have a hard
+// cutoff, so there is nothing to override. The `cronometroAnulado` field on
+// the session doc is preserved (harmless) but never read.
+
+// User-initiated session end. Marks the session state so analytics can tell
+// user_ended sessions apart from ones the inactivity scheduler closed.
+const EndSessionRequestSchema = z.object({
   sessionId: z.string(),
-  anular: z.boolean(),
 });
 
-export const timerOverride = onCall(
+export const endSession = onCall(
   { region: "southamerica-west1", invoker: "public" },
   async (request: CallableRequest) => {
     const userId = request.auth?.uid;
     if (userId === undefined) {
       throw new HttpsError("unauthenticated", "Authentication required");
     }
-
-    // Verify admin role.
-    const userSnap = await db.collection("users").doc(userId).get();
-    const role = (userSnap.data() as { role?: string } | undefined)?.role;
-    if (role !== "admin") {
-      throw new HttpsError("permission-denied", "Admin role required");
-    }
-
-    const parsed = TimerOverrideRequestSchema.safeParse(request.data);
+    const parsed = EndSessionRequestSchema.safeParse(request.data);
     if (!parsed.success) {
       throw new HttpsError("invalid-argument", "Invalid request data");
     }
+    const { sessionId } = parsed.data;
 
-    await overrideTimer(parsed.data.sessionId, parsed.data.anular);
-    return { success: true, cronometroAnulado: parsed.data.anular };
+    const sessionRef = db.collection("sessions").doc(sessionId);
+    const snap = await sessionRef.get();
+    if (!snap.exists) {
+      throw new HttpsError("not-found", "Session not found");
+    }
+    const data = snap.data() as { userId?: string; state?: string };
+    if (data.userId !== userId) {
+      throw new HttpsError("permission-denied", "You do not own this session");
+    }
+    // Idempotent — if the session was already closed by inactivity or crisis,
+    // leave that state in place.
+    if (data.state !== "active") {
+      return { success: true, alreadyClosed: true, state: data.state ?? null };
+    }
+    const sessionManager = createSessionManager();
+    await sessionManager.completeSession(sessionId);
+    return { success: true, alreadyClosed: false, state: "closed_completed" };
   }
 );
 
