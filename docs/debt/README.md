@@ -1,6 +1,6 @@
 # Technical Debt Register
 
-_Last updated: 2026-09-18 (0013 marked implemented — runtime nodejs22 + firebase-functions@7 + firebase-admin@14; awaiting dev deploy)_
+_Last updated: 2026-09-18 (0013 resolved — dev deploy + smoke test done; 0023, 0024, 0025 added)_
 
 | ID | Title | Severity | Status |
 |---|---|---|---|
@@ -16,7 +16,7 @@ _Last updated: 2026-09-18 (0013 marked implemented — runtime nodejs22 + fireba
 | [0010](0010-lab-sessions-firestore-rules.md) | lab_sessions Firestore collection has no security rules | **high** | implemented |
 | [0011](0011-matias-scenario-missing.md) | Scenario 02 (Matías) has no definition document or Firestore seed data | medium | open |
 | [0012](0012-docs-project-naming.md) | docs/03_arquitectura_tecnica.md references incorrect Firebase project names | low | open |
-| [0013](0013-nodejs20-deprecation.md) | Cloud Functions runtime nodejs20 deprecated — upgrade to nodejs22 before 2026-10-30 | **high** | implemented — awaiting manual deploy to dev |
+| [0013](0013-nodejs20-deprecation.md) | Cloud Functions runtime nodejs20 deprecated — upgrade to nodejs22 before 2026-10-30 | **high** | resolved 2026-09-18 (dev only; prod still gated) |
 | [0014](0014-pnpm-workspace-cloudbuild.md) | pnpm workspace:* incompatible with Cloud Build npm — resolved via file:../shared | medium | implemented |
 | [0015](0015-matrix-no-sse-streaming.md) | Matrix state delivered via callable response, not real-time Firestore listener | medium | open |
 | [0016](0016-lab-matrix-no-turn-persistence.md) | Lab matrix state not persisted to turns subcollection (session doc only) | low | open |
@@ -26,6 +26,9 @@ _Last updated: 2026-09-18 (0013 marked implemented — runtime nodejs22 + fireba
 | [0020](0020-est01-finishreason-observability.md) | Call A `finishReason` logged as plain text; no client-side fallback for truncated Martina | medium | open |
 | [0021](0021-vitest-firebase-admin-init-hang.md) | Vitest hangs on any test file that imports `src/config/firebase.ts` (matrixEngine, timerService) | medium | open |
 | [0022](0022-engine-should-read-initial-matrix-from-scenario.md) | Engine should read initial matrix state from the scenario doc, not a per-scenario hard-coded map — gated on PRO-07 | medium | open |
+| [0023](0023-firebase-functions-v7-http-discovery.md) | firebase-functions@7 HTTP discovery hangs on this env — must use `FIREBASE_FUNCTIONS_DISCOVERY_OUTPUT_PATH=true` | low | workaround-in-use |
+| [0024](0024-llmclassifier-product-name.md) | `safety/llmClassifier.ts` Layer 2 prompt still says "Salvador" — deferred until Layer 2 safety fixtures exist | low | open |
+| [0025](0025-adc-hang-no-error.md) | Local admin scripts hang silently when ADC are missing or expired | low | open |
 
 > **Debt 0003 is the highest urgency**: Layer 3 regex patterns are the first line of defense
 > for real crisis detection. Without clinical validation, there is risk of false negatives

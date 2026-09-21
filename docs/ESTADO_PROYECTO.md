@@ -146,7 +146,7 @@ a `summer-chatbot-dev`; Fase 5 lista para deploy.
 - **[aggregators.ts](../packages/functions/src/analytics/aggregators.ts)** helpers puros:
   percentiles, medianas, dwell bucketing, `santiagoDayWindow` (maneja DST CLT/CLST).
 - **[rollupBuilder.ts](../packages/functions/src/analytics/rollupBuilder.ts)**: lee sesiones
-  del día, agrupa por `(scenarioId × cohortCode)`, escribe a `analytics_rollups/{yyyymmdd}`.
+  del día, agrupa por `(scenarioId × cohortCode)`, escribe a `analytics_rollups/{YYYY-MM-DD}`.
 - **[rollupScheduler.ts](../packages/functions/src/analytics/rollupScheduler.ts)**: scheduled
   function `analyticsRollupDaily` corre 04:00 America/Santiago (region `southamerica-east1`
   por la misma excepción de Scheduler).

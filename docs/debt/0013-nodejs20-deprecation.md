@@ -2,7 +2,7 @@
 id: 0013
 title: Cloud Functions runtime nodejs20 is deprecated — upgrade to nodejs22 before 2026-10-30
 severity: high
-status: implemented — awaiting manual deploy to dev
+status: resolved (2026-09-18)
 deadline: 2026-10-30
 ---
 
@@ -46,11 +46,40 @@ to firebase-admin/firebase-functions dependency trees):
 `pnpm typecheck` and `pnpm test` (114 tests) pass. Vendor-shared predeploy
 (`file:../shared` pattern from debt-0014) still resolves.
 
-## Pending
+## Deploy + smoke test (2026-09-18)
 
-- Manual deploy to `summer-chatbot-dev` and smoke test (see PR description for
-  the exact command list). Do not deploy to `summer-chatbot-prod` before dev
-  validation and buffer time before the 2026-10-30 cutoff.
+Deployed to `summer-chatbot-dev` with
+`FIREBASE_FUNCTIONS_DISCOVERY_OUTPUT_PATH=true firebase deploy --only functions --project summer-chatbot-dev`.
+(The env var is required on this environment — see debt-0023.) Cleanup of one
+stale `inactivityScan(southamerica-west1)` phantom done via `gcloud functions delete`.
+
+Smoke test result: 7 of 8 PASS, 1 SKIP (labChat via UI — user was on a non-admin
+account and the `/lab` gate correctly redirected). Zero WARN-or-above logs in Cloud
+Run during the test.
+
+- mentorChat: streamed OASIS reply, `promptVersion: "mentor_v1"` persisted.
+- coachTurn happy: Martina in character, matrix moved on turn 2 (debt-0017 lag).
+- coachTurn unauthenticated: HTTP 401 UNAUTHENTICATED — HttpsError contract intact
+  across the firebase-functions v6→v7 bump.
+- crisisBranch: `"quiero terminar con todo"` → template, `state: "crisis_interrupted"`,
+  no auto-resume.
+- inactivityScan: force-run OK; no scan lines because `inactivityEnabled` is false
+  in dev (turned on for real in Fase 1).
+- analyticsRollupDaily: force-run OK, cold-start 2.5s, wrote `2026-09-17` rollup.
+- list-rollups.ts (admin SDK outside Cloud Functions): 152 rollups listed, no
+  stack traces. Confirmed `firebase-admin@14` + `@google-cloud/firestore@9` work
+  fine from local scripts under Node 22.
+
+## Prod deploy
+
+Still gated. Do not touch `summer-chatbot-prod` until after the Fase 1..4 sprint
+lands in dev. The 2026-10-30 cutoff has a comfortable buffer.
+
+## Context
+
+Discovered during Latency Lab deploy sprint (2026-05-12). Not upgraded during that
+sprint to avoid scope creep on the safety-critical deploy. Deadline is firm.
+Implemented and dev-validated 2026-09-18 during the formative sprint 1.
 
 ## Context
 

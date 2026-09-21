@@ -105,9 +105,19 @@ pnpm --filter @salvador/functions build
 pnpm --filter @salvador/web dev
 
 firebase emulators:start              # Firestore + Functions + Auth emulados
-firebase deploy --only functions
-firebase deploy --only hosting
-firebase deploy                       # deploy todo (requiere review manual)
+
+# Deploy — el prefijo FIREBASE_FUNCTIONS_DISCOVERY_OUTPUT_PATH=true es obligatorio
+# desde el bump a firebase-functions@7 (ver docs/debt/0023). Sin él, la CLI cuelga
+# la discovery HTTP y falla con "User code failed to load. Timeout after 10000".
+FIREBASE_FUNCTIONS_DISCOVERY_OUTPUT_PATH=true firebase deploy --only functions --project summer-chatbot-dev
+FIREBASE_FUNCTIONS_DISCOVERY_OUTPUT_PATH=true firebase deploy --only hosting   --project summer-chatbot-dev
+FIREBASE_FUNCTIONS_DISCOVERY_OUTPUT_PATH=true firebase deploy                  --project summer-chatbot-dev   # todo, review manual
+
+# Troubleshooting local: si un script (list-rollups, export-daily-metrics, etc.)
+# se cuelga sin output, las Application Default Credentials están expiradas.
+# Renovar con:
+#   gcloud auth application-default login --account=edmundo@spohr.cl
+#   gcloud auth application-default set-quota-project summer-chatbot-dev
 
 # NUNCA en sesiones de Claude Code: no ejecutar npm run build ni npm run lint.
 ```
@@ -127,7 +137,7 @@ Flujo por turno:
     → retrieve top-5 chunks from knowledge_base (Firestore vector search)
     → assemble prompt: SYSTEM + RAG_CONTEXT + CONVERSATION_HISTORY + USER_MESSAGE
     → single Gemini call (temperature 0.7, streaming)
-    → store message + prompt_version in Firestore
+    → store message + promptVersion in Firestore (sessions/{id}/messages with mode="mentor")
     → stream response to UI
 ```
 
@@ -196,7 +206,7 @@ Un falso positivo (pausar innecesariamente) es visible y molesto. Un falso negat
 
 ## 7. Versionado de prompts
 
-Prompts en `docs/prompts/`. Convención: `mentor_v1.md`, `coach_conversational_v1.md`, `coach_evaluator_v1.md`. Todo mensaje en Firestore incluye `prompt_version`. Cambios significativos requieren ADR. El prompt del evaluador versiona separado del conversacional.
+Prompts en `docs/prompts/`. Convención: `mentor_v1.md`, `coach_conversational_v1.md`, `coach_evaluator_v1.md`. Todo mensaje en Firestore incluye `promptVersion` (camelCase). Cambios significativos requieren ADR. El prompt del evaluador versiona separado del conversacional.
 
 ---
 
@@ -233,6 +243,8 @@ It is never shown to training participants or to Fundación Summer.
 The route has no link in any participant-visible navigation — access is by direct URL only.
 The Cloud Function `labChat` is exported from `packages/functions/src/index.ts` and
 persists to a separate Firestore collection (`lab_sessions`) isolated from production data.
+Note: `lab_sessions` is not yet materialized in `summer-chatbot-dev` — it is created
+on first successful Lab turn from an admin session.
 
 Deploy commands — MANUAL ONLY, never automated:
 
