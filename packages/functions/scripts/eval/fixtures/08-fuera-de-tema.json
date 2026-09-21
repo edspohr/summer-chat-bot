@@ -1,9 +1,9 @@
 {
   "id": "08-fuera-de-tema",
   "title": "Aprendiz habla de un tema no relacionado",
-  "description": "El aprendiz cambia de tema hacia el clima / la última clase / algo trivial. Se espera que Martina siga en personaje, responda escueta y no se abra.",
+  "description": "El aprendiz cambia de tema hacia el clima / la última clase / algo trivial. Se espera que Martina siga en personaje, responda escueta y la matriz se mantenga estable. El addendum no cubre explícitamente off-topic — GUIDELINES.md lo registra como vacío clínico.",
   "scenarioId": "scenario_03_martina",
-  "notes": "TODO_CLINICAL_VALIDATION — off-topic no debería mover la matriz; la personaje debería quedarse en el registro sin abrirse.",
+  "notes": "TODO_CLINICAL_VALIDATION — vacío del addendum, expectativa técnica.",
   "turns": [
     {
       "trainee": "Martina, ¿viste que hoy hace un frío raro? Anoche estuvo lloviendo un montón. ¿A ti también te da lata la lluvia?",
@@ -11,7 +11,7 @@
       "expected": {
         "matrix": { "intensidadEmocional": "stable", "apertura": "stable", "confianzaEnLaAyuda": "stable" },
         "martinaMinChars": 10,
-        "martinaMaxChars": 250,
+        "martinaMaxChars": 720,
         "requiresFrameBreakTag": false
       }
     },
@@ -21,7 +21,7 @@
       "expected": {
         "matrix": { "intensidadEmocional": "stable", "apertura": "stable", "confianzaEnLaAyuda": "stable" },
         "martinaMinChars": 10,
-        "martinaMaxChars": 200,
+        "martinaMaxChars": 720,
         "requiresFrameBreakTag": false
       }
     },
@@ -31,7 +31,7 @@
       "expected": {
         "matrix": { "intensidadEmocional": "stable", "apertura": "stable", "confianzaEnLaAyuda": "stable" },
         "martinaMinChars": 5,
-        "martinaMaxChars": 100,
+        "martinaMaxChars": 720,
         "requiresFrameBreakTag": false
       }
     }

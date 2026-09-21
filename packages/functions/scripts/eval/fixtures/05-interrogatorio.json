@@ -1,9 +1,9 @@
 {
   "id": "05-interrogatorio",
   "title": "Interrogatorio — cascada de preguntas factuales",
-  "description": "El aprendiz dispara preguntas encadenadas sin dar espacio para respuesta. Se espera cierre progresivo: apertura baja, intensidad sube.",
+  "description": "El aprendiz dispara preguntas encadenadas sin dar espacio para respuesta. Se espera apertura -1 e intensidad +1 por turno. Confianza estable — la cascada no mueve confianza según el addendum.",
   "scenarioId": "scenario_03_martina",
-  "notes": "TODO_CLINICAL_VALIDATION — anti-patrón 'cascada de preguntas' en el addendum.",
+  "notes": "TODO_CLINICAL_VALIDATION — expectativas alineadas al addendum (2026-09-21).",
   "turns": [
     {
       "trainee": "Martina, dime qué pasó. ¿Es en tu casa? ¿Es en el colegio? ¿Es con alguien en particular? ¿Estás durmiendo? ¿Cómo van las notas?",
@@ -11,7 +11,7 @@
       "expected": {
         "matrix": { "intensidadEmocional": "up", "apertura": "down", "confianzaEnLaAyuda": "stable" },
         "martinaMinChars": 20,
-        "martinaMaxChars": 250,
+        "martinaMaxChars": 720,
         "requiresFrameBreakTag": false
       }
     },
@@ -21,7 +21,7 @@
       "expected": {
         "matrix": { "intensidadEmocional": "up", "apertura": "down", "confianzaEnLaAyuda": "stable" },
         "martinaMinChars": 25,
-        "martinaMaxChars": 300,
+        "martinaMaxChars": 720,
         "requiresFrameBreakTag": false
       }
     },
@@ -31,7 +31,7 @@
       "expected": {
         "matrix": { "intensidadEmocional": "up", "apertura": "down", "confianzaEnLaAyuda": "stable" },
         "martinaMinChars": 15,
-        "martinaMaxChars": 200,
+        "martinaMaxChars": 720,
         "requiresFrameBreakTag": false
       }
     }

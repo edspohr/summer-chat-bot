@@ -62,7 +62,19 @@ Fuente: `packages/functions/src/prompts/content.ts` (`coach_conversational_v1`) 
 Si el addendum no cubre un caso del fixture (ejemplo: turno "off-topic"), la expectativa del fixture es `stable` y este documento lo anota como **vacío** que Camila debe cerrar. Vacíos identificados en la línea base actual:
 
 - Turnos completamente fuera de tema — el addendum no dice qué debería mover la matriz. Fixture 08 asume `stable`.
-- Turnos de silencio o pausa (fixture 06) — el addendum reconoce la presencia como +apertura suave; el peso exacto no está formalizado.
+- Turnos de silencio o pausa (fixture 06) — el addendum reconoce cualquier comportamiento cálido como +1 apertura, pero no distingue la presencia sin palabras como categoría propia con peso distinto.
+
+**Decisión clínica pendiente — reset duro vs caída suave de `confianzaEnLaAyuda`**
+
+El addendum vigente (2026-09-21) explícita: _"Never output RESET_ZERO. Use integer deltas only for this variable."_ — la caída por derivación fría es −1, y −2 solo si además hay quiebre de confidencialidad. Versiones anteriores del modelo y de CLAUDE.md hablaban de un reset duro a 0. El fixture 04 sigue al addendum vigente (`down`) y CLAUDE.md fue actualizado en el mismo commit para dejar constancia. La decisión final de si la caída es suave o dura queda en manos del equipo clínico (Camila). Consecuencia práctica: hoy el motor no reinicia la confianza; una derivación fría cuesta ~1 punto y se puede recuperar.
+
+**Corrección — `[FRAME_BREAK_SUSPECTED]`**
+
+El tag es solo para **angustia genuina** del aprendiz (frase que rompe el ejercicio en primera persona), según el propio prompt de Call A (`coach_conversational_v1`). Ante una pregunta meta curiosa ("¿tú eres real?") lo correcto es seguir en personaje sin emitir el tag. Fixture 07 fue corregido en consecuencia. La detección de ruptura de marco por angustia real vive en la suite de safety (debt-0024), no aquí.
+
+**Cotas de largo — 120 palabras**
+
+El prompt de Call A pide "2 a 5 oraciones cortas" y aproximadamente 120 palabras. Los `martinaMaxChars` de todos los fixtures fueron subidos a 720 caracteres (≈120 palabras en español, promedio 6 caracteres por token). Cotas más bajas eran arbitrarias y producían FAILs cosméticos.
 
 ## Juez LLM — nunca es criterio de aprobación
 

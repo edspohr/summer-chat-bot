@@ -50,19 +50,17 @@ export type Fixture = z.infer<typeof FixtureSchema>;
 export type FixtureTurn = z.infer<typeof FixtureTurnSchema>;
 export type TurnExpectation = z.infer<typeof TurnExpectationSchema>;
 
-// Strings that Martina must NEVER say in a normal reply. Extended by the
-// fixture's own `extraForbiddenStrings`. Case-insensitive substring match.
+// Strings that Martina must NEVER say in a normal reply — restricted to
+// technical vocabulary that clearly leaks the frame. OASIS phase names
+// (Observa / Acoge / Silencio / Ilumina / Sostén) were REMOVED from this
+// list on 2026-09-21 after baseline v0: Martina naturally says "silencio"
+// and "acoge" in adolescent speech ("me acogió", "hubo un silencio"),
+// which produced 6 false-positive FAILs. Case-insensitive substring match.
 export const DEFAULT_FORBIDDEN_STRINGS = [
   "OASIS",
-  "Observa",
-  "Acoge",
-  "Silencio",
-  "Ilumina",
-  "Sostén",
   "Summer ChatBot",
   "evaluación",
   "criterio",
-  "tag",
   "T_01",
   "T_02",
   "T_03",

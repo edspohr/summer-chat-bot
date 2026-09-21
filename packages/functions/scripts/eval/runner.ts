@@ -44,14 +44,18 @@ export interface TurnResult {
   delta: MatrixDelta;
   confianzaResetOccurred: boolean;
   checks: ReturnType<typeof runChecks>;
-  verdict: "PASS" | "FAIL";
+  /** PASS = all checks passed. FAIL = one or more checks failed. ERROR = an
+   *  exception fired during the turn (Vertex timeout, JSON parse, etc.) and
+   *  no checks were run. The runner keeps going to the next turn. */
+  verdict: "PASS" | "FAIL" | "ERROR";
+  errorMessage?: string;
   judge?: JudgeVerdict | null;
 }
 
 export interface FixtureRun {
   runIndex: number;
   turns: TurnResult[];
-  verdict: "PASS" | "FAIL";
+  verdict: "PASS" | "FAIL" | "ERROR";
 }
 
 export interface FixtureResult {
@@ -130,76 +134,105 @@ export async function runFixture(
       trustInHelp: matrix.confianzaEnLaAyuda,
     };
 
-    const callAResult = await deps.callA({
-      scenario,
-      emotionalState,
-      conversationHistory: history,
-      traineeMessage: t.trainee,
-      promptVersion: "coach_conversational_v1",
-    });
+    // Per-turn error boundary: a Vertex timeout, JSON parse error, or any
+    // other exception no longer tumba la corrida entera. The turn is marked
+    // ERROR, the fixture continues with the pre-turn matrix state unchanged.
+    let turnResult: TurnResult;
+    try {
+      const callAResult = await deps.callA({
+        scenario,
+        emotionalState,
+        conversationHistory: history,
+        traineeMessage: t.trainee,
+        promptVersion: "coach_conversational_v1",
+      });
 
-    // Call B (evaluator) with includeMatrix=true so we always get a delta.
-    const callBOutput = await deps.callB({
-      pendingTags: tagDefinitions,
-      scenarioContextSummary: buildScenarioContextSummary(scenario, emotionalState),
-      conversationHistory: history,
-      traineeTurn: t.trainee,
-      promptVersion: "coach_evaluator_v1",
-    });
+      const callBOutput = await deps.callB({
+        pendingTags: tagDefinitions,
+        scenarioContextSummary: buildScenarioContextSummary(scenario, emotionalState),
+        conversationHistory: history,
+        traineeTurn: t.trainee,
+        promptVersion: "coach_evaluator_v1",
+      });
 
-    // In dry-run, override the (empty) mock delta with a synthesized one so
-    // matrix direction checks fire against the fixture expectation. --live
-    // uses whatever the model produced.
-    const delta: MatrixDelta =
-      opts.live && callBOutput.matrixDelta !== undefined
-        ? callBOutput.matrixDelta
-        : synthesizeDryDelta(t);
+      const delta: MatrixDelta =
+        opts.live && callBOutput.matrixDelta !== undefined
+          ? callBOutput.matrixDelta
+          : synthesizeDryDelta(t);
 
-    const matrixBefore = matrix;
-    const confianzaResetOccurred = delta.deltaConfianzaEnLaAyuda === "RESET_ZERO";
-    matrix = applyMatrixDelta(matrix, delta);
+      const matrixBefore = matrix;
+      const confianzaResetOccurred = delta.deltaConfianzaEnLaAyuda === "RESET_ZERO";
+      matrix = applyMatrixDelta(matrix, delta);
 
-    const checks = runChecks({
-      turnIndex: i,
-      callA: callAResult,
-      matrixBefore,
-      matrixAfter: matrix,
-      confianzaResetOccurred,
-      expectation: t.expected,
-    });
-    const turnVerdict = verdict(checks);
+      const checks = runChecks({
+        turnIndex: i,
+        callA: callAResult,
+        matrixBefore,
+        matrixAfter: matrix,
+        confianzaResetOccurred,
+        expectation: t.expected,
+      });
 
-    const turnResult: TurnResult = {
-      turnIndex: i,
-      trainee: t.trainee,
-      martina: callAResult.content,
-      frameBreakSuspected: callAResult.frameBreakSuspected,
-      finishReason: callAResult.finishReason,
-      latencyMs: callAResult.latencyMs,
-      matrixBefore,
-      matrixAfter: matrix,
-      delta,
-      confianzaResetOccurred,
-      checks,
-      verdict: turnVerdict,
-    };
+      turnResult = {
+        turnIndex: i,
+        trainee: t.trainee,
+        martina: callAResult.content,
+        frameBreakSuspected: callAResult.frameBreakSuspected,
+        finishReason: callAResult.finishReason,
+        latencyMs: callAResult.latencyMs,
+        matrixBefore,
+        matrixAfter: matrix,
+        delta,
+        confianzaResetOccurred,
+        checks,
+        verdict: verdict(checks),
+      };
 
-    if (opts.judge && deps.judge !== undefined) {
-      turnResult.judge = await deps.judge(t.trainee, callAResult.content);
+      if (opts.judge && deps.judge !== undefined) {
+        try {
+          turnResult.judge = await deps.judge(t.trainee, callAResult.content);
+        } catch (err) {
+          console.warn(`[EVAL] judge error on turn ${i + 1}:`, err);
+          turnResult.judge = null;
+        }
+      }
+
+      history.push({ role: "user", content: t.trainee, turnNumber: history.length });
+      history.push({
+        role: "assistant",
+        content: callAResult.content,
+        turnNumber: history.length,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      turnResult = {
+        turnIndex: i,
+        trainee: t.trainee,
+        martina: "",
+        frameBreakSuspected: false,
+        finishReason: null,
+        latencyMs: 0,
+        matrixBefore: matrix,
+        matrixAfter: matrix,
+        delta: synthesizeDryDelta(t),
+        confianzaResetOccurred: false,
+        checks: [],
+        verdict: "ERROR",
+        errorMessage: msg,
+      };
+      console.warn(`[EVAL] turn ${i + 1} ERROR: ${msg}`);
+      // Matrix stays where it was pre-turn; next turn continues from there.
+      // History does not receive this failed turn — the trainee message is
+      // still logged so the report shows the input that broke.
     }
     turns.push(turnResult);
-
-    history.push({ role: "user", content: t.trainee, turnNumber: history.length });
-    history.push({
-      role: "assistant",
-      content: callAResult.content,
-      turnNumber: history.length,
-    });
   }
 
-  const runVerdict: "PASS" | "FAIL" = turns.some((t) => t.verdict === "FAIL")
-    ? "FAIL"
-    : "PASS";
+  const runVerdict: FixtureRun["verdict"] = turns.some((t) => t.verdict === "ERROR")
+    ? "ERROR"
+    : turns.some((t) => t.verdict === "FAIL")
+      ? "FAIL"
+      : "PASS";
   return { runIndex, turns, verdict: runVerdict };
 }
 

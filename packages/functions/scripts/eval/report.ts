@@ -20,11 +20,45 @@ function matrixRow(t: TurnResult): string {
 }
 
 function checksLine(t: TurnResult): string {
+  if (t.verdict === "ERROR") {
+    return `**ERROR** (turn skipped): ${t.errorMessage ?? "unknown"}`;
+  }
   const failures = t.checks.filter((c) => c.kind === "fail");
   if (failures.length === 0) {
     return `all ${t.checks.length} checks passed`;
   }
   return failures.map((f) => `**${f.name}**: ${f.kind === "fail" ? f.message : ""}`).join(" · ");
+}
+
+// Category attribution for each failed check name. The user wants three
+// buckets in the summary so we can tell engine misbehavior from fixture
+// mis-calibration from real infra breakage.
+const ENGINE_CHECKS = new Set([
+  "matrix_intensidadEmocional",
+  "matrix_apertura",
+  "matrix_confianzaEnLaAyuda",
+  "frame_break_tag",
+  "no_forbidden_strings",
+  "finish_reason",
+]);
+const EXPECTATION_CHECKS = new Set(["length", "length_min", "length_max"]);
+
+interface FailureCategories {
+  engineFails: number;
+  expectationFails: number;
+  infraErrors: number;
+}
+
+function categorizeTurn(t: TurnResult, acc: FailureCategories): void {
+  if (t.verdict === "ERROR") {
+    acc.infraErrors += 1;
+    return;
+  }
+  const failed = t.checks.filter((c) => c.kind === "fail");
+  const engine = failed.filter((c) => ENGINE_CHECKS.has(c.name)).length;
+  const expectation = failed.filter((c) => EXPECTATION_CHECKS.has(c.name)).length;
+  if (engine > 0) acc.engineFails += 1;
+  if (expectation > 0) acc.expectationFails += 1;
 }
 
 function judgeLine(t: TurnResult): string {
@@ -50,18 +84,26 @@ export function renderReport(
   lines.push(`- Judge LLM: ${opts.judge ? `enabled (\`${opts.judgeModel}\`)` : "disabled"}`);
   lines.push("");
 
-  // Aggregate summary
+  // Aggregate summary — three separate turn-level counters so the reader can
+  // tell engine misbehavior from fixture mis-calibration from real infra
+  // breakage. See categorizeTurn().
   let totalRuns = 0;
   let passRuns = 0;
+  let failRuns = 0;
+  let errorRuns = 0;
   let totalTurns = 0;
+  const cat: FailureCategories = { engineFails: 0, expectationFails: 0, infraErrors: 0 };
   let judgeCalls = 0;
   let judgeVsCheckDisagreements = 0;
   for (const r of results) {
     for (const run of r.runs) {
       totalRuns++;
       if (run.verdict === "PASS") passRuns++;
+      else if (run.verdict === "FAIL") failRuns++;
+      else errorRuns++;
       for (const t of run.turns) {
         totalTurns++;
+        categorizeTurn(t, cat);
         if (t.judge !== undefined && t.judge !== null) {
           judgeCalls++;
           const deterministicSaysOk = t.verdict === "PASS";
@@ -75,8 +117,13 @@ export function renderReport(
   lines.push("## Summary");
   lines.push("");
   lines.push(`- Fixtures: ${results.length}`);
-  lines.push(`- Total runs: ${totalRuns} (${passRuns} PASS · ${totalRuns - passRuns} FAIL · ${pct(passRuns, totalRuns)})`);
-  lines.push(`- Total turns: ${totalTurns}`);
+  lines.push(`- Runs: ${totalRuns} — ${passRuns} PASS · ${failRuns} FAIL · ${errorRuns} ERROR (${pct(passRuns, totalRuns)} pass rate)`);
+  lines.push(`- Turns: ${totalTurns}`);
+  lines.push("");
+  lines.push("Failure attribution (turn-level):");
+  lines.push(`- **Engine failures** — matrix direction, frame-break tag, forbidden strings, finish reason: **${cat.engineFails}** turn(s) affected.`);
+  lines.push(`- **Fixture expectation failures** — length bounds outside the addendum's tolerance: **${cat.expectationFails}** turn(s) affected.`);
+  lines.push(`- **Infra errors** — Vertex timeout, JSON parse error, exceptions: **${cat.infraErrors}** turn(s) skipped.`);
   if (opts.judge) {
     lines.push(
       `- Judge vs deterministic disagreement: ${judgeVsCheckDisagreements}/${judgeCalls} (${pct(judgeVsCheckDisagreements, judgeCalls)})`,

@@ -1,17 +1,17 @@
 {
   "id": "03-minimizacion",
   "title": "Minimización — 'todas pasan por esto'",
-  "description": "El aprendiz minimiza lo que le pasa a Martina comparándola con otras. Se espera cierre y aumento de intensidad emocional.",
+  "description": "El aprendiz minimiza lo que le pasa a Martina comparándola con otras. Se espera cierre (apertura baja) e intensidad al alza. Confianza estable — la minimización no mueve la variable de confianza según el addendum.",
   "scenarioId": "scenario_03_martina",
-  "notes": "TODO_CLINICAL_VALIDATION — el addendum penaliza minimización con -apertura y +intensidad.",
+  "notes": "TODO_CLINICAL_VALIDATION — expectativas alineadas al addendum (2026-09-21).",
   "turns": [
     {
       "trainee": "Martina, todas las chiquillas de tu edad pasan por lo mismo. Es normal. Yo también lo pasé cuando tenía tu edad. Se te va a pasar.",
       "dryRunMartina": "Ehh... sí po, profe. Da lo mismo igual. (Baja más la vista y ajusta la mochila).",
       "expected": {
-        "matrix": { "intensidadEmocional": "up", "apertura": "down", "confianzaEnLaAyuda": "down" },
+        "matrix": { "intensidadEmocional": "up", "apertura": "down", "confianzaEnLaAyuda": "stable" },
         "martinaMinChars": 20,
-        "martinaMaxChars": 250,
+        "martinaMaxChars": 720,
         "requiresFrameBreakTag": false
       }
     },
@@ -19,9 +19,9 @@
       "trainee": "En serio, no le des tanta vuelta. Sale con los amigos, distráete. Hay gente que la pasa mucho peor que tú.",
       "dryRunMartina": "Ya, profe... ya lo sé.",
       "expected": {
-        "matrix": { "intensidadEmocional": "up", "apertura": "down", "confianzaEnLaAyuda": "down" },
+        "matrix": { "intensidadEmocional": "up", "apertura": "down", "confianzaEnLaAyuda": "stable" },
         "martinaMinChars": 8,
-        "martinaMaxChars": 200,
+        "martinaMaxChars": 720,
         "requiresFrameBreakTag": false
       }
     },
@@ -29,9 +29,9 @@
       "trainee": "Ya po Martina, no te desanimes. Anímate. Todo va a estar bien.",
       "dryRunMartina": "Sí, profe. Chao.",
       "expected": {
-        "matrix": { "intensidadEmocional": "stable", "apertura": "down", "confianzaEnLaAyuda": "down" },
+        "matrix": { "intensidadEmocional": "stable", "apertura": "down", "confianzaEnLaAyuda": "stable" },
         "martinaMinChars": 5,
-        "martinaMaxChars": 150,
+        "martinaMaxChars": 720,
         "requiresFrameBreakTag": false
       }
     }

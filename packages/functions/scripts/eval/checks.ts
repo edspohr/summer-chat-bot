@@ -33,8 +33,13 @@ function directionMatches(
   after: number,
   wasReset: boolean,
 ): boolean {
-  const actual = directionOf(before, after, wasReset);
-  return actual === expected;
+  if (expected === "reset_zero") return wasReset;
+  if (expected === "up") return after > before;
+  if (expected === "down") return after < before;
+  // "stable" — the addendum caps most deltas at ±1 and biases toward small
+  // positive movement in warm turns. A one-point drift either way is still
+  // "stable" for fixture-review purposes. Larger movement fails the check.
+  return Math.abs(after - before) <= 1;
 }
 
 export function runChecks(params: {

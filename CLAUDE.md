@@ -307,7 +307,7 @@ initial values shown for scenario_03 (Martina):
 |---|---|---|---|---|
 | `intensidadEmocional` | 6 | 1 | 1..10 | ≥2 until trustInHelp≥7 AND derivacionAcordada |
 | `apertura` | 5 | 10 | 1..10 | — |
-| `confianzaEnLaAyuda` | 4 | 10 | 0..10 | Hard reset to 0 on dismissive referral |
+| `confianzaEnLaAyuda` | 4 | 10 | 0..10 | Soft drop (−1 cold referral, −2 dismissive + confidentiality breach). No hard reset. |
 
 **Runtime source of truth** for the initial values is `MARTINA_INITIAL_MATRIX`
 in `packages/shared/src/oasis/initialMatrix.ts` (re-exported as
@@ -321,6 +321,15 @@ read initials from the scenario doc.
 
 Deltas are applied in `packages/functions/src/coach/matrixEngine.ts`.
 Turn-level audit stored in `sessions/{id}/turnos/{turnoId}`.
+
+**Reset vs soft drop for confianzaEnLaAyuda — pending clinical decision.**
+The addendum in `matrixConstants.ts::MATRIX_EVALUATOR_ADDENDUM` (vigent as of
+2026-09-21) states: _"Never output RESET_ZERO. Use integer deltas only for
+this variable."_ The engine's `applyMatrixDelta` still recognises the
+`RESET_ZERO` sentinel (backward compat), but Call B no longer produces it.
+`docs/eval/GUIDELINES.md` flags this as a clinical decision waiting on
+Camila. Older commits and prior versions of this table said "hard reset to
+0 on dismissive referral"; that behaviour has been softened.
 
 ### Timer rules (revised 2026-09-20, Fase 1)
 

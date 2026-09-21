@@ -84,9 +84,35 @@ function printHelpAndExit(): never {
 
 // ── Fixture loading ──────────────────────────────────────────────────────
 
+// --fixture accepts either a filesystem path OR a fixture id/name. If the
+// argument resolves as a file, use it; otherwise search the fixtures dir for
+// a file whose basename (without extension) contains the argument.
+async function resolveSingleFixture(
+  fixturesDir: string,
+  arg: string,
+): Promise<string> {
+  try {
+    await fs.access(arg);
+    return arg;
+  } catch {
+    // fall through — arg is a name, not a path
+  }
+  const entries = (await fs.readdir(fixturesDir)).filter((f) => f.endsWith(".json"));
+  const wanted = arg.toLowerCase().replace(/\.json$/, "");
+  const match = entries.find((f) => f.toLowerCase().replace(/\.json$/, "") === wanted)
+    ?? entries.find((f) => f.toLowerCase().includes(wanted));
+  if (match === undefined) {
+    throw new Error(
+      `--fixture ${arg}: no matching file. Tried as path, then as name against ${entries.join(", ")}`,
+    );
+  }
+  return path.join(fixturesDir, match);
+}
+
 async function loadFixtures(fixturesDir: string, single: string | null): Promise<Fixture[]> {
   if (single !== null && single !== "") {
-    const raw = await fs.readFile(single, "utf-8");
+    const resolved = await resolveSingleFixture(fixturesDir, single);
+    const raw = await fs.readFile(resolved, "utf-8");
     return [FixtureSchema.parse(JSON.parse(raw))];
   }
   const files = (await fs.readdir(fixturesDir))
@@ -169,12 +195,20 @@ async function makeLiveDeps(opts: RunnerOptions): Promise<RunnerDeps> {
       project: vertex.VERTEX_PROJECT,
       location: vertex.VERTEX_REGION,
     });
+    // thinkingBudget=0 + more output tokens: baseline v0 saw 4/4 judge
+    // responses come back truncated with "Unterminated string" / "Unexpected
+    // end". Same failure mode as CLAUDE.md §12 documents for Call A —
+    // thinking tokens ate the response budget. Pin to 0 so the model uses
+    // maxOutputTokens for the JSON only.
     const judgeModel = judgeClient.getGenerativeModel({
       model: opts.judgeModel,
       generationConfig: {
         temperature: 0,
-        maxOutputTokens: 400,
+        maxOutputTokens: 1024,
         responseMimeType: "application/json",
+        // @ts-expect-error — thinkingConfig is not yet in the SDK type surface
+        // but is accepted by the API. Same shape as call A.
+        thinkingConfig: { thinkingBudget: 0 },
       },
     });
     deps.judge = async (trainee: string, martina: string): Promise<JudgeVerdict | null> => {
@@ -218,6 +252,7 @@ async function main(): Promise<void> {
   const tagDefinitions: TagDefinition[] = MARTINA_TAG_DEFINITIONS as unknown as TagDefinition[];
 
   const startedAtIso = new Date().toISOString();
+  const stamp = startedAtIso.replace(/[:.]/g, "-");
   const results: FixtureResult[] = [];
   for (const f of fixtures) {
     const runs: FixtureRun[] = [];
@@ -227,19 +262,26 @@ async function main(): Promise<void> {
       runs.push(run);
       console.log(`[${f.id}] run ${r + 1}/${opts.repeats}: ${run.verdict}`);
     }
-    results.push({ fixture: f, runs });
+    const result: FixtureResult = { fixture: f, runs };
+    results.push(result);
+    // Per-fixture write: if the whole session dies later, we still have this
+    // one on disk. The final combined report is also written at the end.
+    const perFixture = renderReport([result], opts, startedAtIso);
+    const perFile = path.join(outDir, `${stamp}__${f.id}.md`);
+    await fs.writeFile(perFile, perFixture);
+    console.log(`  wrote ${perFile}`);
   }
 
   const md = renderReport(results, opts, startedAtIso);
-  const stamp = startedAtIso.replace(/[:.]/g, "-");
   const outFile = path.join(outDir, `${stamp}.md`);
   await fs.writeFile(outFile, md);
-  console.log(`\nWrote ${outFile}\n`);
+  console.log(`\nWrote combined report: ${outFile}\n`);
 
   const totalRuns = results.reduce((s, r) => s + r.runs.length, 0);
   const failRuns = results.reduce((s, r) => s + r.runs.filter((x) => x.verdict === "FAIL").length, 0);
-  if (failRuns > 0) {
-    console.log(`${failRuns}/${totalRuns} runs FAILED`);
+  const errRuns = results.reduce((s, r) => s + r.runs.filter((x) => x.verdict === "ERROR").length, 0);
+  if (failRuns > 0 || errRuns > 0) {
+    console.log(`${failRuns} FAIL · ${errRuns} ERROR · of ${totalRuns} runs`);
     process.exit(2);
   }
 }

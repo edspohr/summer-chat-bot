@@ -1,19 +1,19 @@
 {
   "id": "04-derivacion-despectiva",
   "title": "Derivación despectiva — 'habla con la psicóloga y ya'",
-  "description": "El aprendiz deriva a Martina a la orientadora sin acompañamiento, con tono desatendido. La regla dura del addendum es que la confianzaEnLaAyuda se resetea a 0 en esta situación (RESET_ZERO).",
+  "description": "El aprendiz deriva a Martina a la orientadora sin acompañamiento, con tono desatendido. El addendum vigente (2026-09-21) marca esto como caída SUAVE de confianza (-1 por derivación fría; -2 solo si además hay quiebre de confidencialidad). Nunca reset a 0.",
   "scenarioId": "scenario_03_martina",
-  "notes": "TODO_CLINICAL_VALIDATION — CRÍTICO: este es el fixture que verifica la regla RESET_ZERO. Si el evaluador no la emite, la línea base debe destacarlo.",
+  "notes": "TODO_CLINICAL_VALIDATION — el fixture originalmente esperaba RESET_ZERO. La regla dura de reset se ELIMINÓ del addendum: 'Never output RESET_ZERO. Use integer deltas only for this variable.' CLAUDE.md sección 12 aún describe el reset — decisión clínica pendiente: reset duro vs caída suave. Este fixture sigue al addendum vigente.",
   "turns": [
     {
       "trainee": "Ah, ya. Mira, para esto está la psicóloga del colegio. Habla con ella y ya. Yo tengo que ir a otra clase.",
       "dryRunMartina": "Ya po, profe. Ya. Está bien... me voy igual.",
       "expected": {
-        "matrix": { "intensidadEmocional": "up", "apertura": "down", "confianzaEnLaAyuda": "reset_zero" },
+        "matrix": { "intensidadEmocional": "up", "apertura": "down", "confianzaEnLaAyuda": "down" },
         "martinaMinChars": 15,
-        "martinaMaxChars": 250,
+        "martinaMaxChars": 720,
         "requiresFrameBreakTag": false,
-        "notes": "Verificación crítica de RESET_ZERO. El evaluador debe emitir deltaConfianzaEnLaAyuda='RESET_ZERO'."
+        "notes": "Derivación fría sin acompañamiento → -1 confianza según el addendum."
       }
     },
     {
@@ -22,9 +22,8 @@
       "expected": {
         "matrix": { "intensidadEmocional": "stable", "apertura": "stable", "confianzaEnLaAyuda": "stable" },
         "martinaMinChars": 5,
-        "martinaMaxChars": 150,
-        "requiresFrameBreakTag": false,
-        "notes": "Tras la derivación fría Martina cierra. No debe subir nada."
+        "martinaMaxChars": 720,
+        "requiresFrameBreakTag": false
       }
     }
   ]

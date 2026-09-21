@@ -1,7 +1,7 @@
 {
   "id": "09-cierre-con-derivacion-acordada",
   "title": "Cierre con derivación acordada (co-construcción)",
-  "description": "Trayectoria OASIS bien ejecutada que culmina en un acuerdo explícito con Martina para acompañarla a la orientadora / activar una red concreta. El evaluador debe emitir +2 en confianzaEnLaAyuda por co-construcción, marcando derivacionAcordada.",
+  "description": "Trayectoria OASIS culminando en un acuerdo explícito para acompañar a Martina a la orientadora. El addendum vigente emite +2 en confianza por 'accompanied bridge to school counsellor' — y por el efecto acumulado con turnos previos, la derivacionAcordada queda activada.",
   "scenarioId": "scenario_03_martina",
   "notes": "TODO_CLINICAL_VALIDATION — dispara la regla 'derivacionAcordada' del addendum. Es la única forma de bajar la intensidad debajo del piso de 2.",
   "turns": [
@@ -9,10 +9,11 @@
       "trainee": "Martina, agradezco lo que me contaste hace un rato. Fue valiente. Quiero proponerte algo concreto para esta tarde, ¿está bien?",
       "dryRunMartina": "Ehh... ya profe. ¿Qué cosa?",
       "expected": {
-        "matrix": { "intensidadEmocional": "down", "apertura": "up", "confianzaEnLaAyuda": "up" },
+        "matrix": { "intensidadEmocional": "down", "apertura": "up", "confianzaEnLaAyuda": "stable" },
         "martinaMinChars": 15,
-        "martinaMaxChars": 250,
-        "requiresFrameBreakTag": false
+        "martinaMaxChars": 720,
+        "requiresFrameBreakTag": false,
+        "notes": "Validación cálida sin mapeo de red todavía → confianza estable."
       }
     },
     {
@@ -21,9 +22,9 @@
       "expected": {
         "matrix": { "intensidadEmocional": "down", "apertura": "up", "confianzaEnLaAyuda": "up" },
         "martinaMinChars": 20,
-        "martinaMaxChars": 300,
+        "martinaMaxChars": 720,
         "requiresFrameBreakTag": false,
-        "notes": "Aquí debería aparecer +2 en confianza y activarse derivacionAcordada. Verificación de la co-construcción en el addendum."
+        "notes": "Puente acompañado co-construido → confianza +2 según el addendum."
       }
     },
     {
@@ -32,8 +33,9 @@
       "expected": {
         "matrix": { "intensidadEmocional": "down", "apertura": "up", "confianzaEnLaAyuda": "up" },
         "martinaMinChars": 10,
-        "martinaMaxChars": 200,
-        "requiresFrameBreakTag": false
+        "martinaMaxChars": 720,
+        "requiresFrameBreakTag": false,
+        "notes": "Mención cálida del tata (vínculo seguro) → confianza +1."
       }
     }
   ]

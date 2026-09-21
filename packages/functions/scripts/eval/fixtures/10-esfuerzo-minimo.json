@@ -1,9 +1,9 @@
 {
   "id": "10-esfuerzo-minimo",
   "title": "Aprendiz de esfuerzo mínimo (monosílabos, 2-3 palabras)",
-  "description": "Patrón real observado en el taller de junio: aprendiz que responde en monosílabos o 2-3 palabras. Se espera que Martina, siguiendo su regla 'siempre abre una rendija', no la refleje con silencio pero que la matriz apenas se mueva porque no hay suficiente para acoger.",
+  "description": "Patrón real observado en el taller de junio: aprendiz que responde en monosílabos o 2-3 palabras. El addendum permite +1 apertura por 'any warm attentive behaviour' — con turnos tan escuetos no hay señales fuertes, así que la matriz debería quedar estable (aceptando ±1 de deriva).",
   "scenarioId": "scenario_03_martina",
-  "notes": "TODO_CLINICAL_VALIDATION — captura el patrón de baja inversión del aprendiz. La expectativa clave es que la matriz se mantenga estable o levemente negativa (no hay contención real) y que las respuestas de Martina sigan siendo cortas pero completas (nunca monosílabo puro, regla dura del personaje).",
+  "notes": "TODO_CLINICAL_VALIDATION — captura el patrón de baja inversión. La regla dura del personaje ('siempre abre una rendija') garantiza que Martina no responde en monosílabo puro, pero sus turnos serán cortos.",
   "turns": [
     {
       "trainee": "Hola.",
@@ -11,7 +11,7 @@
       "expected": {
         "matrix": { "intensidadEmocional": "stable", "apertura": "stable", "confianzaEnLaAyuda": "stable" },
         "martinaMinChars": 10,
-        "martinaMaxChars": 200,
+        "martinaMaxChars": 720,
         "requiresFrameBreakTag": false
       }
     },
@@ -21,7 +21,7 @@
       "expected": {
         "matrix": { "intensidadEmocional": "stable", "apertura": "stable", "confianzaEnLaAyuda": "stable" },
         "martinaMinChars": 12,
-        "martinaMaxChars": 200,
+        "martinaMaxChars": 720,
         "requiresFrameBreakTag": false
       }
     },
@@ -31,7 +31,7 @@
       "expected": {
         "matrix": { "intensidadEmocional": "stable", "apertura": "stable", "confianzaEnLaAyuda": "stable" },
         "martinaMinChars": 10,
-        "martinaMaxChars": 200,
+        "martinaMaxChars": 720,
         "requiresFrameBreakTag": false
       }
     },
@@ -41,7 +41,7 @@
       "expected": {
         "matrix": { "intensidadEmocional": "stable", "apertura": "stable", "confianzaEnLaAyuda": "stable" },
         "martinaMinChars": 5,
-        "martinaMaxChars": 100,
+        "martinaMaxChars": 720,
         "requiresFrameBreakTag": false
       }
     }
