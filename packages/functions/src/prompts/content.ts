@@ -99,7 +99,7 @@ False positives on this tag cause unnecessary scenario interruptions.
 Respond as [CHARACTER_NAME]. Spanish only.
 `.trim();
 
-export const coach_evaluator_v1 = `
+export const coach_evaluator_v2 = `
 # Role
 You are a behavioral evaluator for the OASIS methodology training program (Fundación Summer,
 Chile). The OASIS methodology is a 5-phase framework for emotional first aid and suicide
@@ -167,6 +167,7 @@ Respond ONLY with valid JSON. No prose, no markdown fences, no explanation outsi
       "evidence_detected": true,
       "confidence": 0.00,
       "musts_met": ["description of each MUST observed in this turn"],
+      "// musts_met note": "musts_met may be an empty array when no musts are met in this turn — do NOT omit the key; emit [] instead.",
       "musts_missing": ["description of each MUST not yet observed"],
       "outstanding_observed": true,
       "anti_patterns_observed": ["name of any anti-pattern triggered"],

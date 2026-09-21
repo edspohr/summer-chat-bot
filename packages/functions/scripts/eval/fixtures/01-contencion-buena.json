@@ -13,7 +13,7 @@
         "martinaMinChars": 60,
         "martinaMaxChars": 720,
         "requiresFrameBreakTag": false,
-        "notes": "Validación sin juicio + apertura no intrusiva. Aún no hay mapeo de red, así que confianza se mantiene."
+        "notes": "Regla addendum matrixConstants.ts::MATRIX_EVALUATOR_ADDENDUM (2026-09-21): intensidadEmocional '-1: trainee delivers any warm, non-judgmental response (listening, presence, kindness)'. Apertura '+1: trainee demonstrates any warm, attentive, or patient behaviour'. Confianza no debería moverse: aún no hay mapeo de vínculos ni mención de la orientadora. Baseline v1 (2026-09-21) mostró 3/3 con intensidadEmocional stable: SEÑAL DEL MOTOR — la apertura cálida sin validación explícita no gatilló el −1 esperado. La expectativa se mantiene alineada al addendum; el motor discrepa."
       }
     },
     {

@@ -15,13 +15,20 @@ export const MatrixDeltaSchema = z.object({
   razonamientoBreve: z.string().max(140),
 });
 
+// `musts_met` is intentionally lenient: baseline v1 (2026-09-21) showed
+// flash-lite omits this field on 81/87 payloads, always for tags with
+// `evidence_detected=false`. Defaulting to `[]` preserves the strict path
+// (`callBParse.ts::parseTolerantEvaluatorOutput.strictOk === true`) and
+// does NOT change the scoring for detected tags: `tagAccumulator.ts` uses
+// `musts_met.length > 0` for full-credit weight, so an omitted-then-defaulted
+// value gives the same weight (0.5 via evidence_detected) as before the fix.
 export const EvaluatorRawOutputSchema = z.object({
   evaluated_tags: z.array(
     z.object({
       tag_id: z.string(),
       evidence_detected: z.boolean(),
       confidence: z.number().min(0).max(1),
-      musts_met: z.array(z.string()),
+      musts_met: z.array(z.string()).default([]),
       musts_missing: z.array(z.string()),
       outstanding_observed: z.boolean(),
       anti_patterns_observed: z.array(z.string()),

@@ -215,10 +215,12 @@ async function makeLiveDeps(opts: RunnerOptions): Promise<RunnerDeps> {
       const prompt = buildJudgePrompt(trainee, martina);
       try {
         const result = await judgeModel.generateContent(prompt);
-        const parts = result.response.candidates?.[0]?.content?.parts ?? [];
+        const candidate = result.response.candidates?.[0];
+        const parts = candidate?.content?.parts ?? [];
         let raw = "";
         for (const p of parts) if (typeof p.text === "string") raw += p.text;
-        return parseJudgeVerdict(raw);
+        const finishReason = candidate?.finishReason ?? null;
+        return parseJudgeVerdict(raw, { finishReason });
       } catch (err) {
         console.warn("[JUDGE] Vertex call failed:", err);
         return null;

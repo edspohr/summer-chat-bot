@@ -76,6 +76,24 @@ El tag es solo para **angustia genuina** del aprendiz (frase que rompe el ejerci
 
 El prompt de Call A pide "2 a 5 oraciones cortas" y aproximadamente 120 palabras. Los `martinaMaxChars` de todos los fixtures fueron subidos a 720 caracteres (≈120 palabras en español, promedio 6 caracteres por token). Cotas más bajas eran arbitrarias y producían FAILs cosméticos.
 
+## Regla anti-sobreajuste — la expectativa del fixture no puede seguir al motor
+
+Cada expectativa por variable de un fixture **debe citar la regla del addendum o del prompt que la justifica**. La cita va en el campo `notes` del turno o del fixture. Ejemplo del formato:
+
+```
+"notes": "Regla addendum matrixConstants.ts::MATRIX_EVALUATOR_ADDENDUM (2026-09-21): intensidadEmocional '-1: trainee delivers any warm, non-judgmental response'."
+```
+
+**Una expectativa NO se cambia porque el motor devolvió otra cosa.** Si la baseline muestra una discrepancia y el addendum respalda la expectativa del fixture, el fixture se queda como está y la discrepancia se registra como **SEÑAL DEL MOTOR** en el mismo campo `notes`. Solo se cambia una expectativa cuando la lectura del addendum vigente la contradice.
+
+Prohibiciones concretas:
+- No agregar `"stable"` en una variable con la única motivación de que el motor la deja estable.
+- No agregar `extraForbiddenStrings` para hacer pasar un FAIL cosmético; el filtro de trainee-echoed strings ya cubre paráfrasis legítimas.
+- No relajar `martinaMinChars` para hacer pasar respuestas truncadas — investiga primero `finishReason`.
+- No inventar una regla clínica en `notes` que no aparezca en `matrixConstants.ts` ni en `prompts/content.ts`. Si el addendum no cubre el caso, márcalo como vacío del addendum y espera decisión clínica.
+
+El revisor debe poder abrir un fixture, leer la cita, abrir el addendum y confirmar la regla en 10 segundos. Si eso no se puede hacer, el fixture está sobreajustando y hay que corregirlo antes de mergear.
+
 ## Juez LLM — nunca es criterio de aprobación
 
 El juez (`--judge`) usa `gemini-2.5-flash`, temperature 0, salida JSON:

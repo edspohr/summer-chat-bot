@@ -276,7 +276,7 @@ export const coachTurn = onCall(
       scenarioContextSummary: buildScenarioContextSummary(scenario, callAEmotionalState),
       conversationHistory,
       traineeTurn: traineeMessage,
-      promptVersion: "coach_evaluator_v1",
+      promptVersion: "coach_evaluator_v2",
     };
 
     // Call A (Martina's reply) runs first and its result is awaited before responding.

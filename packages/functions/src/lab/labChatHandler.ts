@@ -460,7 +460,7 @@ export async function labChatHandler(
             scenarioContextSummary: `Personaje: ${scenarioDoc?.persona.name ?? ""}. Escenario de entrenamiento OASIS.`,
             conversationHistory: historyTurns,
             traineeTurn: message,
-            promptVersion: "coach_evaluator_v1",
+            promptVersion: "coach_evaluator_v2",
           },
           true, // includeMatrix = true
         );

@@ -35,7 +35,7 @@ export async function buildCoachCallBPrompt(
   return {
     systemPrompt: "",
     userContent: "",
-    promptVersion: "coach_evaluator_v1",
+    promptVersion: "coach_evaluator_v2",
     estimatedTokens: 0,
   };
 }

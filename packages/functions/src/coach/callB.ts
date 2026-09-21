@@ -66,7 +66,7 @@ export async function runCallB(
 ): Promise<EvaluatorRawOutput> {
   if (input.pendingTags.length === 0 && !includeMatrix) return EMPTY_OUTPUT;
 
-  const template = await loadPrompt("coach_evaluator_v1");
+  const template = await loadPrompt("coach_evaluator_v2");
   const prompt = buildPrompt(input, template, includeMatrix);
 
   const vertexAI = new VertexAI({ project: VERTEX_PROJECT, location: VERTEX_REGION });

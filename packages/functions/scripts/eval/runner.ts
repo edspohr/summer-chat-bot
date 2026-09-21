@@ -152,7 +152,7 @@ export async function runFixture(
         scenarioContextSummary: buildScenarioContextSummary(scenario, emotionalState),
         conversationHistory: history,
         traineeTurn: t.trainee,
-        promptVersion: "coach_evaluator_v1",
+        promptVersion: "coach_evaluator_v2",
       });
 
       const delta: MatrixDelta =
@@ -167,6 +167,7 @@ export async function runFixture(
       const checks = runChecks({
         turnIndex: i,
         callA: callAResult,
+        trainee: t.trainee,
         matrixBefore,
         matrixAfter: matrix,
         confianzaResetOccurred,

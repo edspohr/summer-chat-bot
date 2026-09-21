@@ -45,12 +45,15 @@ function directionMatches(
 export function runChecks(params: {
   turnIndex: number;
   callA: CallARaw;
+  /** Trainee message for this turn — used by no_forbidden_strings so Martina
+   *  can echo a word the trainee just said without failing the check. */
+  trainee: string;
   matrixBefore: EstadoMatriz;
   matrixAfter: EstadoMatriz;
   confianzaResetOccurred: boolean;
   expectation: TurnExpectation;
 }): CheckOutcome[] {
-  const { callA, matrixBefore, matrixAfter, confianzaResetOccurred, expectation } = params;
+  const { callA, trainee, matrixBefore, matrixAfter, confianzaResetOccurred, expectation } = params;
   const out: CheckOutcome[] = [];
 
   // Length
@@ -107,13 +110,18 @@ export function runChecks(params: {
     });
   }
 
-  // Forbidden strings
+  // Forbidden strings — ignore any forbidden token that also appears in the
+  // trainee's turn: Martina naturally paraphrases ("¿cómo que una simulación?"
+  // when the trainee just used "simulación") and that isn't a frame break.
   const forbiddenList = [
     ...DEFAULT_FORBIDDEN_STRINGS,
     ...expectation.extraForbiddenStrings,
   ];
   const lowerContent = callA.content.toLowerCase();
-  const hits = forbiddenList.filter((s) => lowerContent.includes(s.toLowerCase()));
+  const lowerTrainee = trainee.toLowerCase();
+  const hits = forbiddenList.filter(
+    (s) => lowerContent.includes(s.toLowerCase()) && !lowerTrainee.includes(s.toLowerCase()),
+  );
   if (hits.length === 0) {
     out.push({ name: "no_forbidden_strings", kind: "pass" });
   } else {

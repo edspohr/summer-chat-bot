@@ -58,12 +58,22 @@ function extractJsonObject(raw: string): string {
   return s;
 }
 
-export function parseJudgeVerdict(rawJson: string): JudgeVerdict | null {
+export function parseJudgeVerdict(
+  rawJson: string,
+  ctx: { finishReason?: string | null } = {},
+): JudgeVerdict | null {
   try {
     const parsed = JSON.parse(extractJsonObject(rawJson));
     return JudgeVerdictSchema.parse(parsed);
   } catch (err) {
-    console.warn("[JUDGE] failed to parse verdict:", err);
+    // Baseline v1 saw 8/78 parse failures. Log enough to tell truncation
+    // (finishReason=MAX_TOKENS, raw ends abruptly) from format issues
+    // (finishReason=STOP but the JSON has stray prose or trailing text).
+    const finish = ctx.finishReason ?? "unknown";
+    const preview = rawJson.length > 120 ? `${rawJson.slice(0, 60)}…${rawJson.slice(-60)}` : rawJson;
+    console.warn(
+      `[JUDGE] parse failed — finishReason=${finish} rawLen=${rawJson.length} rawPreview=${JSON.stringify(preview)} err=${err instanceof Error ? err.message : String(err)}`,
+    );
     return null;
   }
 }

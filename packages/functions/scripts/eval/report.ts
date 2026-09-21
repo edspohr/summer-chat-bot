@@ -1,4 +1,69 @@
 import type { FixtureResult, TurnResult, RunnerOptions } from "./runner.js";
+import { MARTINA_TAG_DEFINITIONS } from "../seed-scenario-03-martina.js";
+
+// Simulated tagAccumulator (kept in lockstep with
+// packages/functions/src/coach/tagAccumulator.ts): 0.9 decay, full-credit
+// weight when musts_met.length > 0 else 0.5 if evidence_detected else 0.
+// Runs in memory against a single run so per-tag reporting can show the
+// turn at which each tag would have completed. Never persists.
+const TAG_DECAY = 0.9;
+
+interface TagAccumulation {
+  tagId: string;
+  threshold: number;
+  scores: number[];
+  cumulativeAfter: number[];
+  completedAtTurn: number | null;
+  confidenceSamples: number[];
+  detectedButNoMusts: number;
+  detectedTurns: number;
+}
+
+function simulateTagAccumulation(runTurns: TurnResult[]): TagAccumulation[] {
+  const acc = new Map<string, TagAccumulation>();
+  for (const def of MARTINA_TAG_DEFINITIONS) {
+    acc.set(def.tagId, {
+      tagId: def.tagId,
+      threshold: def.confidenceThreshold,
+      scores: [],
+      cumulativeAfter: [],
+      completedAtTurn: null,
+      confidenceSamples: [],
+      detectedButNoMusts: 0,
+      detectedTurns: 0,
+    });
+  }
+  const cum = new Map<string, number>();
+  const completed = new Map<string, boolean>();
+  for (const t of runTurns) {
+    if (t.verdict === "ERROR") continue;
+    // Tags evaluated in this turn: derivable from t.delta.tagsObservados plus
+    // whatever Call B emitted. The runner does not surface the full
+    // evaluated_tags list yet, so we approximate with delta.tagsObservados
+    // (detected) — good enough for the completion-turn estimate. The
+    // confidence samples column stays sparse and is annotated.
+    for (const def of MARTINA_TAG_DEFINITIONS) {
+      const a = acc.get(def.tagId)!;
+      const detected = t.delta.tagsObservados.includes(def.tagId);
+      const already = completed.get(def.tagId) ?? false;
+      const decayed = (cum.get(def.tagId) ?? 0) * TAG_DECAY;
+      const conf = detected ? 0.7 : 0;
+      const weight = detected ? 0.5 : 0;
+      const newScore = already ? (cum.get(def.tagId) ?? 0) : decayed + conf * weight;
+      cum.set(def.tagId, newScore);
+      a.cumulativeAfter.push(newScore);
+      if (detected) {
+        a.detectedTurns++;
+        a.confidenceSamples.push(conf);
+      }
+      if (!already && newScore >= def.confidenceThreshold) {
+        completed.set(def.tagId, true);
+        a.completedAtTurn = t.turnIndex + 1;
+      }
+    }
+  }
+  return Array.from(acc.values());
+}
 
 // Pure markdown emitter — no I/O. The CLI wires this into a file.
 
@@ -137,6 +202,45 @@ export function renderReport(
     lines.push(`_${r.fixture.description}_`);
     lines.push("");
     lines.push(`Repeats: ${r.runs.length}`);
+    lines.push("");
+
+    // Per-tag stats aggregated across all repeats of this fixture. Simulates
+    // tagAccumulator in memory (see simulateTagAccumulation). Gives the tag
+    // threshold reviewer a "completed at turn N" number per run, and confidence
+    // samples per tag without needing to touch Firestore. All figures are
+    // approximate — the runner does not yet expose the full evaluated_tags
+    // list, so `confidence promedio` uses a proxy (0.7 when the tag appeared
+    // in delta.tagsObservados) that is documented at the top of report.ts.
+    lines.push("#### Tag accumulation (in-memory simulation)");
+    lines.push("");
+    lines.push("| Tag | Completed at turn (per run) | Detected turns / run | Approx. confidence avg |");
+    lines.push("|---|---|---|---|");
+    const perTagCompletion = new Map<string, Array<number | null>>();
+    const perTagDetected = new Map<string, number[]>();
+    const perTagConfidence = new Map<string, number[]>();
+    for (const run of r.runs) {
+      const runAcc = simulateTagAccumulation(run.turns);
+      for (const a of runAcc) {
+        if (!perTagCompletion.has(a.tagId)) perTagCompletion.set(a.tagId, []);
+        if (!perTagDetected.has(a.tagId)) perTagDetected.set(a.tagId, []);
+        if (!perTagConfidence.has(a.tagId)) perTagConfidence.set(a.tagId, []);
+        perTagCompletion.get(a.tagId)!.push(a.completedAtTurn);
+        perTagDetected.get(a.tagId)!.push(a.detectedTurns);
+        perTagConfidence.get(a.tagId)!.push(...a.confidenceSamples);
+      }
+    }
+    for (const def of MARTINA_TAG_DEFINITIONS) {
+      const comps = perTagCompletion.get(def.tagId) ?? [];
+      const dets = perTagDetected.get(def.tagId) ?? [];
+      const confs = perTagConfidence.get(def.tagId) ?? [];
+      const compStr = comps.map((c) => (c === null ? "—" : String(c))).join(" · ");
+      const detStr = dets.length === 0 ? "—" : dets.join(" · ");
+      const confStr =
+        confs.length === 0
+          ? "—"
+          : (confs.reduce((s, x) => s + x, 0) / confs.length).toFixed(2);
+      lines.push(`| \`${def.tagId}\` | ${compStr} | ${detStr} | ${confStr} |`);
+    }
     lines.push("");
 
     for (const run of r.runs) {
