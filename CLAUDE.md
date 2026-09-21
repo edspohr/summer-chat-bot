@@ -140,7 +140,12 @@ FIREBASE_FUNCTIONS_DISCOVERY_OUTPUT_PATH=true firebase deploy                  -
 #   gcloud auth application-default login --account=edmundo@spohr.cl
 #   gcloud auth application-default set-quota-project summer-chatbot-dev
 
-# NUNCA en sesiones de Claude Code: no ejecutar npm run build ni npm run lint.
+# Lint (only the web package has a script today — debt-0026 resolved 2026-09-21).
+# eslint stack lives at the workspace root (eslint 8 + typescript-eslint 6 +
+# eslint-plugin-react-hooks 4). Runs against packages/web/src.
+pnpm --filter @salvador/web lint
+
+# NUNCA en sesiones de Claude Code: no ejecutar npm run build.
 ```
 
 ---

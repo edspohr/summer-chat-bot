@@ -204,7 +204,6 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
     estadoMatriz,
     timerState,
     serverClosedState,
-    latenciaMs,
     rateLimit,
     clearRateLimit,
     crisisMeta,

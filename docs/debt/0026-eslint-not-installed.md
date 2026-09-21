@@ -2,8 +2,24 @@
 id: 0026
 title: ESLint config exists but the tool is not installed in the monorepo
 severity: medium
-status: open
+status: resolved (2026-09-21)
 ---
+
+## Resolution
+
+2026-09-21 (before Fase 4 step 2). Installed ESLint 8 + typescript-eslint 6 +
+eslint-plugin-react-hooks 4 as workspace devDeps. Added a `lint` script to
+`packages/web/package.json` only (functions and shared have no React and their
+strict typecheck already catches most issues; adding lint there is a
+follow-up, not blocking). CLAUDE.md §4 updated to document
+`pnpm --filter @salvador/web lint`.
+
+Running the new lint over `packages/web/src` surfaced one dead binding
+(unused `latenciaMs` destructured from `useCoachSession` in CoachSession.tsx)
+and zero `react-hooks/rules-of-hooks` violations, confirming the LabChat
+hooks-order fix is clean. Fixed in the same commit.
+
+## What is broken (original context, preserved for history)
 
 ## What is broken
 
