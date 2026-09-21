@@ -8,7 +8,11 @@
 
 **Model config** (from `config/runtime`, defaults in code):
 - `responseMimeType: "application/json"`
-- `thinkingBudget: 0`   ← same pin as Call A and the eval judge; without it, output truncates
+- `thinkingBudget: 0` (default, from `config/runtime.feedbackThinkingBudget`).
+  Chosen from a two-fixture A/B on 2026-09-21: tb=1024 took 12.9s and
+  produced 894 thinking tokens; tb=0 took 6.8s with comparable content
+  quality and MORE verified `martinaCues` (4/4 vs 3/4 on fixture 01).
+  Retry-on-`MAX_TOKENS` still lowers tb further, but only fires when tb>0.
 - `maxOutputTokens: 4096` — holgado; the JSON is small but the model must have room
 - `temperature: 0.5` — bounded creativity for the quotes and alternatives
 - Retries via `retryOnQuota` with `timeoutMs: 30_000` (Call B ceiling).

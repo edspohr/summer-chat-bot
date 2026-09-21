@@ -32,9 +32,11 @@ export interface RuntimeConfig {
   /** Fase 4 — maxOutputTokens for the feedback model. Holgado. */
   feedbackMaxOutputTokens: number;
   /**
-   * Fase 4 — thinkingBudget for the feedback model. Default 1024 (some
-   * reasoning helps quote fidelity). If the response comes back with
-   * finishReason=MAX_TOKENS, the generator retries once with 0.
+   * Fase 4 — thinkingBudget for the feedback model. Default 0.
+   * Baseline (2026-09-21, fixture 01): tb=1024 → 12.9s latency, 894
+   * thinking tokens; tb=0 → 6.8s latency, comparable content quality,
+   * MORE martinaCues verified (4/4 vs 3/4). Retry stays configured for
+   * finishReason=MAX_TOKENS but only fires when tb>0.
    */
   feedbackThinkingBudget: number;
   /** Fase 4 — per-request Vertex deadline for the feedback call. */
@@ -53,7 +55,7 @@ const DEFAULTS: RuntimeConfig = {
   evaluatorEveryNTurns: 1,
   feedbackModel: "gemini-2.5-flash",
   feedbackMaxOutputTokens: 4096,
-  feedbackThinkingBudget: 1024,
+  feedbackThinkingBudget: 0,
   feedbackTimeoutMs: 30_000,
 };
 
