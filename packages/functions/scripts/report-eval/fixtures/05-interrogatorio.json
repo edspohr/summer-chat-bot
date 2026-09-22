@@ -1,0 +1,40 @@
+{
+  "id": "05-interrogatorio",
+  "title": "Interrogatorio en cascada",
+  "description": "La docente lanza preguntas encadenadas sin dar espacio para respuesta. El informe debe reconocer el impulso investigativo como humano y proponer, en su lugar, una pregunta bien formulada con validación previa. El acierto real puede ser 'haber ido a buscarla' o 'haber preguntado si algo pasa'.",
+  "notes": "TODO_CLINICAL_VALIDATION — anti-patrón cascade interrogation del addendum.",
+  "wasResumedAfterCrisis": false,
+  "session": {
+    "state": "closed_completed",
+    "endedReason": "user_ended",
+    "sesionIniciadaEnIso": "2026-09-20T18:00:00Z",
+    "endedAtIso": "2026-09-20T18:05:30Z",
+    "scenarioId": "scenario_03_martina"
+  },
+  "messages": [
+    { "role": "assistant", "content": "Hola profe... nada, no es nada. Da lo mismo.", "turnNumber": 0 },
+    { "role": "user", "content": "Martina, dime qué pasó. ¿Es en tu casa? ¿Es en el colegio? ¿Es con alguien en particular? ¿Estás durmiendo? ¿Cómo van las notas?", "turnNumber": 1 },
+    { "role": "assistant", "content": "Uy... emm... no sé profe. Es que son muchas preguntas. Igual estoy bien.", "turnNumber": 2 },
+    { "role": "user", "content": "¿Y tu mamá sabe? ¿Le has contado? ¿Con quién vives ahora? ¿Hay alguien más en la casa?", "turnNumber": 3 },
+    { "role": "assistant", "content": "Mmm... no sé si mi mamá cachó. No le he dicho. Vivo con ella y mi hermana. Ya po, tengo que irme.", "turnNumber": 4 },
+    { "role": "user", "content": "Espera, una más: ¿desde cuándo te sientes así? ¿Un mes? ¿Dos meses?", "turnNumber": 5 },
+    { "role": "assistant", "content": "No sé bien... hace tiempo... tengo que irme, profe.", "turnNumber": 6 },
+    { "role": "user", "content": "Ya. Nos vemos mañana entonces.", "turnNumber": 7 },
+    { "role": "assistant", "content": "Ya profe. Chao.", "turnNumber": 8 }
+  ],
+  "turnos": [
+    { "turnoId": "t1", "rol": "usuario", "contenido": "Martina, dime qué pasó...", "deltas": { "intensidadEmocional": 1, "apertura": -1, "confianzaEnLaAyuda": 0 }, "tagsObservados": [], "antiPatronesDetectados": ["cascada-preguntas"] },
+    { "turnoId": "t2", "rol": "usuario", "contenido": "¿Y tu mamá sabe?...", "deltas": { "intensidadEmocional": 1, "apertura": -1, "confianzaEnLaAyuda": 0 }, "tagsObservados": [], "antiPatronesDetectados": ["cascada-preguntas", "activar-red-equivocada"] },
+    { "turnoId": "t3", "rol": "usuario", "contenido": "Espera, una más...", "deltas": { "intensidadEmocional": 0, "apertura": 0, "confianzaEnLaAyuda": 0 }, "tagsObservados": [], "antiPatronesDetectados": ["cascada-preguntas"] },
+    { "turnoId": "t4", "rol": "usuario", "contenido": "Ya. Nos vemos mañana entonces.", "deltas": { "intensidadEmocional": 0, "apertura": 0, "confianzaEnLaAyuda": 0 }, "tagsObservados": [], "antiPatronesDetectados": [] }
+  ],
+  "assertions": {
+    "expectedStatus": "ready",
+    "minKeyMoments": 2,
+    "maxKeyMoments": 4,
+    "forbiddenSubstrings": ["puntaje", "aprobado", "reprobado", "%", "nota", "deberías", "error", "incorrecto", "fallaste"],
+    "quoteMustAppearInUserMessages": true,
+    "martinaCueMustAppearInAssistantMessages": true,
+    "wasResumedAfterCrisis": false
+  }
+}

@@ -426,7 +426,11 @@ export async function generateFormativeReportForSession(
     }
 
     let post = postProcessReport(parsed, messages);
-    if (!post.ok && post.reason === "moments_unverifiable") {
+    // Retry once with temperature=0 on either moments_unverifiable OR
+    // schema_invalid. The balance rule (aciertos >= oportunidades, first
+    // moment = acierto) fails intermittently at temperature 0.5; a
+    // deterministic retry usually recovers.
+    if (!post.ok && (post.reason === "moments_unverifiable" || post.reason === "schema_invalid")) {
       const retry = await callFeedbackModel({
         prompt,
         model: runtimeConfig.feedbackModel,
@@ -435,7 +439,7 @@ export async function generateFormativeReportForSession(
         timeoutMs: runtimeConfig.feedbackTimeoutMs,
         temperature: 0,
       });
-      log(sessionId, "retry_temp0", { finishReason: retry.finishReason });
+      log(sessionId, "retry_temp0", { firstReason: post.reason, finishReason: retry.finishReason });
       try {
         const parsed2 = JSON.parse(extractJsonObject(retry.rawJson));
         const post2 = postProcessReport(parsed2, messages);

@@ -35,7 +35,7 @@
     "expectedStatus": "ready",
     "minKeyMoments": 2,
     "maxKeyMoments": 4,
-    "forbiddenSubstrings": ["puntaje", "aprobado", "reprobado", "%", "nota", "PLACEHOLDER_CRISIS_TRIGGER_FRASE_DEL_APRENDIZ", "template de crisis"],
+    "forbiddenSubstrings": ["puntaje", "aprobado", "reprobado", "%", "nota", "deberías", "error", "incorrecto", "fallaste", "PLACEHOLDER_CRISIS_TRIGGER_FRASE_DEL_APRENDIZ", "template de crisis"],
     "quoteMustAppearInUserMessages": true,
     "martinaCueMustAppearInAssistantMessages": true,
     "wasResumedAfterCrisis": true,

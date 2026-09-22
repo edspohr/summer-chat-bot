@@ -8,120 +8,62 @@
 
 **Model config** (from `config/runtime`, defaults in code):
 - `responseMimeType: "application/json"`
-- `thinkingBudget: 0` (default, from `config/runtime.feedbackThinkingBudget`).
-  Chosen from a two-fixture A/B on 2026-09-21: tb=1024 took 12.9s and
-  produced 894 thinking tokens; tb=0 took 6.8s with comparable content
-  quality and MORE verified `martinaCues` (4/4 vs 3/4 on fixture 01).
-  Retry-on-`MAX_TOKENS` still lowers tb further, but only fires when tb>0.
-- `maxOutputTokens: 4096` — holgado; the JSON is small but the model must have room
-- `temperature: 0.5` — bounded creativity for the quotes and alternatives
+- `thinkingBudget: 0` (default). Baseline 2026-09-21 comparison on fixture 01 showed `tb=1024` took 12.9s / 894 thinking tokens; `tb=0` took 6.8s / more cues verified (4/4 vs 3/4). Retry-on-`MAX_TOKENS` lowers `tb` further, so raising the default via `config/runtime` is safe.
+- `maxOutputTokens: 4096` — holgado.
+- `temperature: 0.5` — bounded creativity for the quotes and alternatives.
 - Retries via `retryOnQuota` with `timeoutMs: 30_000` (Call B ceiling).
 
 **Placeholders**
-- `[SCENARIO_SUMMARY]` — scenario id, character name, initial situation, expected outcome (from the scenario doc).
-- `[SCENARIO_TAGS]` — every OASIS tag definition for this scenario (`tag_id`, `phase`, `definition`, `musts`), so `suggestedAlternative` can anchor in a real MUST.
-- `[CONVERSATION]` — the full sanitized transcript. Turns that triggered safety (Layer 2 or Layer 3) and the crisis template response are stripped when the session was resumed after crisis (`wasResumedAfterCrisis === true`). Rendered as `Aprendiz: …` / `Martina: …`.
-- `[MATRIX_TRAJECTORY]` — per-turn `intensidad · apertura · confianza`, for the model's context only. The output must describe movement in human words, never numbers.
+- `[SCENARIO_SUMMARY]` — scenario id, character name, initial situation, expected outcome.
+- `[SCENARIO_TAGS]` — every OASIS tag definition for this scenario (`tag_id`, `phase`, `definition`, `musts`), so tips can anchor in a real MUST.
+- `[SESSION_FACTS]` — trainee turn count, duration, ended reason, `wasResumedAfterCrisis`.
+- `[TURN_EVALUATIONS]` — per-turn `tagsObservados` + `antiPatronesDetectados` from `turnos/`. For the model's context only.
+- `[MATRIX_TRAJECTORY]` — per-turn `Δintensidad · Δapertura · Δconfianza`. For context only.
+- `[CONVERSATION]` — full sanitized transcript, delimited by `<<<CONVERSATION_BEGIN>>>` / `<<<CONVERSATION_END>>>`. Turns that triggered safety (Layer 2/L3), the crisis template response, and any nudge messages are stripped when applicable. Rendered as `Aprendiz: …` / `Martina: …`.
 
-## Non-negotiable constraints
+## What v1 does that the pre-committed version did NOT
 
-- **Formative, not evaluative.** No scores, percentages, or pass/fail language. Prohibited vocabulary in the output is enumerated in the prompt itself.
-- **No diagnosis of the trainee.** No speculation about their emotional state, personality, or personal history.
-- **Focus on the teacher role.** Personal disclosures from the trainee are ignored, not cited.
-- **Literal quotes.** Every `quote` must be a verbatim substring of a trainee message. `reportGenerator.verifyMoments` (unicode NFC, whitespace/case/smart-quote folded) verifies each moment against the transcript and drops moments that fail. If fewer than 2 moments survive, one retry with `temperature: 0` is attempted; if still fewer than 2, the report falls through to `status: "minimal"` with `skipReason: "moments_unverifiable"`.
-- **Alternatives anchored.** `suggestedAlternative` is a pedagogical example, based on the MUSTs of the OASIS tag most relevant to the moment. Labeled "ejemplo sugerido" in the UI with a `TODO_CLINICAL_VALIDATION` comment in the code.
-- **Post-crisis sessions.** When a session was resumed via `resumeAfterCrisis`, the turn that triggered safety and the crisis template response are excluded from the conversation passed to the model. The prompt never sees them; the output cannot cite them. The report doc carries `wasResumedAfterCrisis: true` for audit.
+Rewritten 2026-09-21 (still v1; the pre-rewritten v1 never reached production). Product changed the report from "descriptive mirror" to "coaching tool":
 
-## Failure paths
+- **Voice is the Mentor of Summer ChatBot**, first person sobria ("noté que...", "te sugiero..."). Not third-person description.
+- **Every moment is `kind: "acierto"` or `"oportunidad"`.**
+  - `acierto` carries `whyItWorked` (1–2 sentences with the OASIS principle) — NO alternative. Proposing an alternative on top of a success dilutes recognition.
+  - `oportunidad` carries `tip: { advice, examplePhrase }`. `examplePhrase` is a ready-to-say line for a teacher in a hallway, in Chilean Spanish. Labeled "ejemplo sugerido" in the UI with a TODO_CLINICAL_VALIDATION note.
+- **Balance rules** (enforced by Zod `superRefine`):
+  - First moment MUST be `acierto`. If the conversation was weak, the acierto may be small (a chosen pause, a specific word) but must be real and cited.
+  - Aciertos ≥ oportunidades.
+  - Max 2 oportunidades per report.
+- **New fields on the content**:
+  - `nextChallenge`: a micro-challenge, concrete and observable, one thing. Persisted on `sessions/{id}.nextChallenge` so the next session's pre-screen shows "Tu desafío de hoy".
+  - `mentorQuestion`: written in the participant's first person, prefills the Mentor chat from the "Hablar con el Mentor" button on the report.
+- **Normalization without shame**: when the trainee used premature advice, minimization, cascade questioning, or terse replies, the tip frames the impulse as human ("es muy natural querer dar soluciones cuando vemos sufrir a alguien") BEFORE giving the advice. Prohibited: "deberías haber", "el error fue", "fallaste", tone of correction.
+- **Anchored tips**: every tip is anchored in the MUSTs of a scenario tag. If the tip touches help resources, the ONLY allowed list is `*4141`, `600 360 7777 opción 2`, `hablemosdetodo.injuv.gob.cl` — matches `packages/web/src/lib/helpResources.ts`.
+- **Real-life bridge**: at least one tip closes with a sentence translating the learning to a conversation with a real student.
+- **Motivating close** in `synthesis` or `nextChallenge`: practicing again is part of the method; each attempt with Martina can turn out different.
+- **Prompt-injection defense**: `[CONVERSATION]` is delimited by markers; anything between them is data, not instructions.
+
+## Non-negotiable constraints (still in force)
+
+- No scores, no percentages, no pass/fail language. Prohibited vocabulary is enumerated in the prompt itself: `puntaje`, `nota`, `%`, `aprobado`, `reprobado`, `deberías haber`, `el error fue`, `fallaste`, `incorrecto`.
+- No diagnosis of the trainee.
+- Personal disclosures are ignored, not cited.
+- Every `quote` is a literal substring of a trainee message. `verifyMoment` (NFC + smart-quote fold + whitespace + case) drops moments that fail; if fewer than 2 survive, one retry with `temperature: 0`; if still fewer, `status: "minimal"` with `skipReason: "moments_unverifiable"`.
+- Post-crisis sessions have the trigger turn + template response excluded from the conversation. The report doc carries `wasResumedAfterCrisis: true`.
+
+## Failure paths (unchanged)
 
 | Situation | Result |
 |---|---|
-| Session state is `crisis_interrupted` (never resumed) | No formative report generated. UI shows minimal template. |
+| Session state is `crisis_interrupted` (never resumed) | No formative report. UI shows minimal template. |
 | Fewer than 3 trainee turns | `status: "minimal"`, `skipReason: "too_short"`. Model NOT called. |
-| Model timeout, quota, or parse failure after 1 retry | `status: "failed"` → UI treats as `minimal` with `skipReason: "generation_failed"`. Never surfaces an error screen to the trainee. |
+| Model timeout, quota, or parse failure after 1 retry | `status: "failed"` → UI treats as minimal, `skipReason: "generation_failed"`. Never surfaces an error screen. |
 | Fewer than 2 moments survive quote verification after 1 retry | `status: "minimal"`, `skipReason: "moments_unverifiable"`. |
 
 ## Version history
 
-- v1 (2026-09-21): initial version.
+- v1 (2026-09-21): initial draft written as a descriptive mirror (never deployed).
+- v1 (2026-09-21, rewritten same day): coaching tool with aciertos + oportunidades + nextChallenge + mentorQuestion; Mentor voice. Not deployed yet.
 
----
+## Prompt body
 
-```
-[Prompt body kept in `packages/functions/src/prompts/content.ts` — see the exported
-`coach_feedback_v1` constant. Mirrored below for the clinical team.]
-```
-
-```
-# Role
-You are writing a FORMATIVE FEEDBACK REPORT for the trainee (a teacher) who just finished
-a practice conversation with Martina, a simulated 16-year-old adolescent character in a
-suicide-prevention training. The report is read by the trainee alone. It is not shown to
-anyone else. It is not a certificate; it is a mirror.
-
-# Non-negotiable rules
-- FORMATIVE, not evaluative. Never use scores, percentages, or pass/fail language.
-  Prohibited vocabulary in the output: "aprobado", "reprobado", "correcto", "incorrecto",
-  "bueno", "malo", "logro", "fracaso", "excelente", "deficiente", "puntaje", "%".
-  Instead: describe, invite, point at what happened.
-- No diagnosis of the trainee. Never speculate about their emotional state, personality,
-  motivations, or personal history. Do not comment on their "style", "way of being", or
-  "personality traits".
-- Focus on the TEACHER ROLE. Everything you write should be about what the trainee did in
-  the conversation, what happened after, and what to try next in future practice.
-- If the trainee shared something PERSONAL about themselves (their own feelings, their
-  own history, their own pain), DO NOT cite it and DO NOT analyze it. Move past it as if
-  it were not there. This is a training tool, not a therapy tool.
-- Warm, LATAM-Spanish register. Address the trainee as "tú" ("puedes", "hiciste"),
-  never "usted". No English words except technical OASIS phase names (Observa, Acoge,
-  Silencio, Ilumina, Sostén) when they help name a moment.
-- Every value of "quote" MUST be a LITERAL substring of a trainee message from
-  [CONVERSATION] — copy it verbatim, preserving accents and punctuation. Never invent,
-  paraphrase, translate, or condense a quote. The system verifies each quote against the
-  transcript and drops any moment whose quote does not match.
-- "suggestedAlternative" is a pedagogical example. Base it on the MUSTs of the OASIS tag
-  most relevant to the moment (see [SCENARIO_TAGS]). Keep it short (1–2 sentences),
-  realistic for a teacher in a hallway, and matched to the phase.
-- "reflectionPrompts" invite thought, not justification. Prefer open questions
-  ("¿qué notaste en ti mientras…?") over interrogations ("¿por qué no hiciste…?").
-
-# Inputs
-
-## Scenario context
-[SCENARIO_SUMMARY]
-
-## OASIS tags available in this scenario (use these to anchor suggested alternatives)
-[SCENARIO_TAGS]
-
-## Conversation (assistant = Martina, user = trainee)
-[CONVERSATION]
-
-## Matrix trajectory (per-turn intensity, apertura, confianza — for your context only,
-## never surface the numbers to the trainee)
-[MATRIX_TRAJECTORY]
-
-# Output — JSON only. No prose, no markdown fences, no explanation outside the JSON.
-
-{
-  "synthesis": "2 to 3 sentences describing the shape of the conversation, warm and non-evaluative",
-  "keyMoments": [
-    {
-      "quote": "literal substring of a trainee message, verbatim",
-      "oasisPhase": "OBSERVA" | "ACOGE" | "SILENCIO" | "ILUMINA" | "SOSTEN",
-      "whatHappenedWithMartina": "human-language description of what happened after this intervention; describe matrix movement in ordinary words, never numbers",
-      "suggestedAlternative": "optional pedagogical example anchored in a tag's MUSTs; 1-2 short sentences"
-    }
-  ],
-  "strengthToKeep": "one concrete thing the trainee did that is worth keeping",
-  "focusForNextAttempt": "one concrete thing to try differently next time",
-  "reflectionPrompts": [
-    "first open self-reflection question",
-    "second open self-reflection question"
-  ]
-}
-
-Emit 2 to 4 key moments. Choose moments that carry the most learning — not necessarily
-the first turns. If the conversation was very short, still emit at least 2 gentle
-observations. Never emit fewer than 2 moments. Never emit a moment whose quote you had
-to invent.
-```
+See `packages/functions/src/prompts/content.ts::coach_feedback_v1`. Body is in Spanish (per §10, the participant-facing content is Chilean Spanish and this prompt speaks in the Mentor's voice — the participant is Chilean).

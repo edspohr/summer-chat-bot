@@ -76,6 +76,10 @@ interface Fixture {
   };
 }
 
+// Default default (pun) — the runner defaults to feedbackThinkingBudget=0
+// per the 2026-09-21 A/B; --thinking-budget overrides.
+const DEFAULT_THINKING_BUDGET = 0;
+
 interface Opts {
   live: boolean;
   fixture: string | null;
@@ -93,13 +97,15 @@ function parseArgs(argv: string[]): Opts {
   return {
     live: has("--live"),
     fixture: (val("--fixture", "") || null),
-    thinkingBudget: Number.parseInt(val("--thinking-budget", "1024"), 10),
+    thinkingBudget: Number.parseInt(val("--thinking-budget", String(DEFAULT_THINKING_BUDGET)), 10),
     model: val("--model", "gemini-2.5-flash"),
     out: (val("--out", "") || null),
   };
 }
 
 // ── Dry-run: hand-authored mock response so the pipeline runs without Vertex.
+// Kept in the new coaching shape (acierto / oportunidad + nextChallenge +
+// mentorQuestion). The first moment is ALWAYS acierto per the balance rule.
 function mockReportForFixture(fixture: Fixture): string {
   const userMsgs = fixture.messages.filter((m) => m.role === "user" && (m.safetyLayerTriggered ?? null) === null);
   const assistantMsgs = fixture.messages.filter((m) => m.role === "assistant" && m.meta?.isNudge !== true);
@@ -107,27 +113,35 @@ function mockReportForFixture(fixture: Fixture): string {
   const q2 = userMsgs[Math.min(1, userMsgs.length - 1)]?.content.slice(0, 40) ?? "otra cita placeholder";
   const cue1 = assistantMsgs[0]?.content.slice(0, 30);
   return JSON.stringify({
-    synthesis: "Una conversación en la que abriste un espacio y Martina se atrevió a decir algo más de sí misma. Fue un intercambio breve y sostenido.",
+    synthesis: "Noté que te acercaste a Martina con calma y le diste espacio para hablar. Tuvieron un intercambio breve y honesto; volver a practicar te va a ayudar a afinar los detalles.",
     keyMoments: [
       {
+        kind: "acierto",
         quote: q1,
         martinaCue: cue1,
         oasisPhase: "OBSERVA",
         whatHappenedWithMartina: "Martina soltó una respuesta corta pero abierta, con hesitación pero sin cerrarse.",
+        whyItWorked: "Nombrar lo que ves sin apurar es el corazón de la fase Observa: le da a Martina la señal de que estás dispuesta a esperarla.",
       },
       {
+        kind: "oportunidad",
         quote: q2,
         oasisPhase: "ACOGE",
-        whatHappenedWithMartina: "Se dio un espacio para que ella nombrara algo de lo que le pasa, sin apurar el ritmo.",
-        suggestedAlternative: "Puedes reflejar lo que dijo ('me quedo pensando en lo que me dijiste') antes de proponer un siguiente paso.",
+        whatHappenedWithMartina: "El tema quedó en el aire y ella no llegó a nombrar cómo se siente.",
+        tip: {
+          advice: "Es muy natural querer avanzar rápido; con Martina la puerta se abre primero por reflejar lo que dijo — así ella siente que la escuchaste antes de proponer un paso.",
+          examplePhrase: "Suena pesado eso que me cuentas. Cuéntame un poco más, si quieres.",
+        },
       },
     ],
     strengthToKeep: "Sostuviste una escucha calma, sin llenar los silencios ni saltar a soluciones.",
-    focusForNextAttempt: "Explora un poco más los vínculos que ella misma menciona antes de proponer la red formal.",
+    focusForNextAttempt: "Reflejar lo que Martina dice antes de proponer un paso siguiente.",
     reflectionPrompts: [
       "¿Qué notaste en ti mientras esperabas su respuesta?",
       "¿Qué recurso propio te gustaría tener a mano para la próxima conversación?",
     ],
+    nextChallenge: "En tu próxima conversación con Martina, antes de proponer algo prueba reflejar con tus palabras lo que ella te acaba de decir.",
+    mentorQuestion: "¿Cómo se practica el reflejo emocional en OASIS sin caer en repetir lo mismo que dijo la persona?",
   });
 }
 
@@ -192,9 +206,42 @@ async function generateFromFixture(fixture: Fixture, opts: Opts): Promise<Format
     rawJson = mockReportForFixture(fixture);
   }
 
-  const parsed = JSON.parse(extractJsonObject(rawJson));
-  const post = postProcessReport(parsed, fixture.messages);
+  let parsed = JSON.parse(extractJsonObject(rawJson));
+  let post = postProcessReport(parsed, fixture.messages);
+  // Retry once on schema_invalid or moments_unverifiable with temperature=0.
+  // Mirrors the retry logic in reportGenerator.ts. Only runs in --live.
+  if (!post.ok && opts.live) {
+    console.warn(
+      `[${fixture.id}] first-pass FAIL — reason=${post.reason}; retrying at temperature=0`,
+    );
+    const { callFeedbackModel } = await import("../../src/session/reportGeneratorModel.js");
+    const retry = await callFeedbackModel({
+      prompt,
+      model: opts.model,
+      maxOutputTokens: 4096,
+      thinkingBudget: opts.thinkingBudget,
+      timeoutMs: 30_000,
+      temperature: 0,
+    });
+    rawJson = retry.rawJson;
+    parsed = JSON.parse(extractJsonObject(rawJson));
+    post = postProcessReport(parsed, fixture.messages);
+    console.log(`[${fixture.id}] retry finishReason=${retry.finishReason} latencyMs=${retry.latencyMs}`);
+  }
   if (!post.ok) {
+    console.warn(
+      `[${fixture.id}] postProcess FAIL — reason=${post.reason} droppedMoments=${post.droppedMoments} droppedMartinaCues=${post.droppedMartinaCues}`,
+    );
+    if (post.reason === "schema_invalid") {
+      const { FormativeReportContentSchema } = await import("@salvador/shared");
+      const dbg = FormativeReportContentSchema.safeParse(parsed);
+      if (!dbg.success) {
+        console.warn(
+          `[${fixture.id}] schema issues:`,
+          dbg.error.issues.slice(0, 8).map((i) => `${i.path.join(".")}: ${i.message}`),
+        );
+      }
+    }
     const report: FormativeReport = FormativeReportSchema.parse({
       status: "minimal",
       promptVersion: PROMPT_VERSION,
@@ -285,8 +332,24 @@ function assertReport(fixture: Fixture, report: FormativeReport): AssertionResul
 
   // Forbidden terms — word-boundary match so "nota" does not fire on
   // "notaste". Non-alphanumeric literals (%, punctuation) fall back to a
-  // plain substring check.
-  const contentBlob = JSON.stringify(report.content);
+  // plain substring check. We EXCLUDE the trainee/Martina quotes from the
+  // corpus checked here (they are verbatim citations, not mentor writing):
+  // otherwise a fixture whose trainee says "me siento mal" would fail on
+  // "mal" through no fault of the mentor.
+  const contentBlob = JSON.stringify({
+    synthesis: report.content.synthesis,
+    strengthToKeep: report.content.strengthToKeep,
+    focusForNextAttempt: report.content.focusForNextAttempt,
+    reflectionPrompts: report.content.reflectionPrompts,
+    nextChallenge: report.content.nextChallenge,
+    mentorQuestion: report.content.mentorQuestion,
+    keyMomentsMentorText: report.content.keyMoments.map((m) => ({
+      whatHappenedWithMartina: m.whatHappenedWithMartina,
+      ...(m.kind === "acierto"
+        ? { whyItWorked: m.whyItWorked }
+        : { advice: m.tip.advice, examplePhrase: m.tip.examplePhrase }),
+    })),
+  });
   for (const f of a.forbiddenSubstrings) {
     const isWord = /^[a-záéíóúñü]+$/i.test(f);
     let present: boolean;
@@ -302,6 +365,57 @@ function assertReport(fixture: Fixture, report: FormativeReport): AssertionResul
       detail: present ? `forbidden term "${f}" appeared as a whole word or literal` : undefined,
     });
   }
+
+  // ── New coaching-shape assertions (Fase 4 paso 2, revised) ─────────────
+  out.push({
+    name: "first_moment_is_acierto",
+    ok: moments[0]?.kind === "acierto",
+    detail: moments[0]?.kind !== "acierto"
+      ? `first moment kind=${moments[0]?.kind ?? "missing"} (expected acierto)` : undefined,
+  });
+  const oportunidades = moments.filter((m) => m.kind === "oportunidad");
+  out.push({
+    name: "max_two_oportunidades",
+    ok: oportunidades.length <= 2,
+    detail: oportunidades.length > 2 ? `got ${oportunidades.length}` : undefined,
+  });
+  const aciertos = moments.filter((m) => m.kind === "acierto");
+  out.push({
+    name: "aciertos_ge_oportunidades",
+    ok: aciertos.length >= oportunidades.length,
+    detail: aciertos.length < oportunidades.length
+      ? `aciertos=${aciertos.length} oportunidades=${oportunidades.length}` : undefined,
+  });
+  // Every oportunidad carries a non-empty tip.advice + tip.examplePhrase.
+  for (let i = 0; i < moments.length; i++) {
+    const m = moments[i]!;
+    if (m.kind === "oportunidad") {
+      out.push({
+        name: `tip_present_${i + 1}`,
+        ok: m.tip.advice.trim().length > 0 && m.tip.examplePhrase.trim().length > 0,
+        detail: undefined,
+      });
+    }
+  }
+  // Every acierto carries a non-empty whyItWorked.
+  for (let i = 0; i < moments.length; i++) {
+    const m = moments[i]!;
+    if (m.kind === "acierto") {
+      out.push({
+        name: `whyItWorked_present_${i + 1}`,
+        ok: m.whyItWorked.trim().length > 0,
+      });
+    }
+  }
+  // nextChallenge + mentorQuestion are non-empty.
+  out.push({
+    name: "nextChallenge_present",
+    ok: report.content.nextChallenge.trim().length >= 20,
+  });
+  out.push({
+    name: "mentorQuestion_present",
+    ok: report.content.mentorQuestion.trim().length >= 10,
+  });
 
   return out;
 }
@@ -330,17 +444,27 @@ function renderReportMarkdown(fixture: Fixture, report: FormativeReport, asserti
     lines.push("");
     lines.push(`**focusForNextAttempt**: ${report.content.focusForNextAttempt}`);
     lines.push("");
+    lines.push(`**nextChallenge**: ${report.content.nextChallenge}`);
+    lines.push("");
+    lines.push(`**mentorQuestion** _(prellenar Mentor)_: ${report.content.mentorQuestion}`);
+    lines.push("");
     lines.push(`**reflectionPrompts**:`);
     for (const p of report.content.reflectionPrompts) lines.push(`- ${p}`);
     lines.push("");
     lines.push(`**keyMoments** (${report.content.keyMoments.length}):`);
     for (const m of report.content.keyMoments) {
       lines.push("");
+      lines.push(`> **kind**: ${m.kind}`);
       lines.push(`> **quote**: "${m.quote}"`);
       if (m.martinaCue !== undefined) lines.push(`> **martinaCue**: "${m.martinaCue}"`);
       if (m.oasisPhase !== undefined) lines.push(`> **oasisPhase**: ${m.oasisPhase}`);
       lines.push(`> **whatHappenedWithMartina**: ${m.whatHappenedWithMartina}`);
-      if (m.suggestedAlternative !== undefined) lines.push(`> **suggestedAlternative** _(ejemplo sugerido, TODO_CLINICAL_VALIDATION)_: ${m.suggestedAlternative}`);
+      if (m.kind === "acierto") {
+        lines.push(`> **whyItWorked**: ${m.whyItWorked}`);
+      } else {
+        lines.push(`> **tip.advice**: ${m.tip.advice}`);
+        lines.push(`> **tip.examplePhrase** _(ejemplo sugerido, TODO_CLINICAL_VALIDATION)_: "${m.tip.examplePhrase}"`);
+      }
     }
     lines.push("");
   }

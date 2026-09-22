@@ -236,15 +236,22 @@ describe("verifyMoment", () => {
   const assistantMsgs: MessageSlice[] = [a("Hola profe... no sé", 2)];
 
   it("drops the moment when the quote is not verbatim", () => {
-    const m = { quote: "no exacto", whatHappenedWithMartina: "algo" as string };
+    const m = {
+      kind: "acierto" as const,
+      quote: "no exacto",
+      whatHappenedWithMartina: "algo con largo suficiente para pasar",
+      whyItWorked: "principio simple, dos frases o menos",
+    };
     expect(verifyMoment(m, userMsgs, assistantMsgs)).toBeNull();
   });
 
   it("keeps the moment when quote matches; keeps martinaCue when it verifies", () => {
     const m = {
+      kind: "acierto" as const,
       quote: "quiero saber cómo estás",
       martinaCue: "no sé",
-      whatHappenedWithMartina: "algo pasó suficientemente largo",
+      whatHappenedWithMartina: "algo pasó suficientemente largo aquí",
+      whyItWorked: "principio simple, dos frases o menos",
     };
     const v = verifyMoment(m, userMsgs, assistantMsgs);
     expect(v).not.toBeNull();
@@ -254,9 +261,11 @@ describe("verifyMoment", () => {
 
   it("keeps the moment but drops martinaCue when only the cue fails", () => {
     const m = {
+      kind: "acierto" as const,
       quote: "quiero saber cómo estás",
       martinaCue: "cita inventada",
-      whatHappenedWithMartina: "algo pasó suficientemente largo",
+      whatHappenedWithMartina: "algo pasó suficientemente largo aquí",
+      whyItWorked: "principio simple, dos frases o menos",
     };
     const v = verifyMoment(m, userMsgs, assistantMsgs);
     expect(v).not.toBeNull();
@@ -283,36 +292,71 @@ describe("postProcessReport", () => {
     ...assistantMsgs,
   ];
 
-  it("returns ok content when >=2 moments verify", () => {
-    const raw = {
-      synthesis: "Una conversación en la que abriste un espacio y Martina se atrevió a hablar un poco más de sí misma.",
+  function baseGoodReport(overrides: Partial<Record<string, unknown>> = {}) {
+    return {
+      synthesis: "Noté que abriste un espacio y Martina se atrevió a decir algo más de sí. Fue un intercambio breve; volver a practicar te ayudará a afinar los detalles.",
       keyMoments: [
-        { quote: "cuéntame cómo estás hoy", oasisPhase: "OBSERVA", whatHappenedWithMartina: "Martina soltó una respuesta corta pero abierta." },
-        { quote: "pensado en hacerte daño", oasisPhase: "ACOGE", whatHappenedWithMartina: "Ella tomó un respiro y compartió algo importante." },
+        {
+          kind: "acierto",
+          quote: "cuéntame cómo estás hoy",
+          oasisPhase: "OBSERVA",
+          whatHappenedWithMartina: "Martina soltó una respuesta corta pero abierta.",
+          whyItWorked: "Nombrar lo que ves sin apurar es el corazón de la fase Observa.",
+        },
+        {
+          kind: "oportunidad",
+          quote: "pensado en hacerte daño",
+          oasisPhase: "ACOGE",
+          whatHappenedWithMartina: "Ella tomó un respiro y compartió algo importante.",
+          tip: {
+            advice: "Antes de la pregunta directa, reflejar lo que dijo ayuda a que la reciba con la puerta abierta.",
+            examplePhrase: "Suena pesado eso, gracias por contármelo.",
+          },
+        },
       ],
-      strengthToKeep: "Sostuviste la calma y no llenaste los silencios.",
-      focusForNextAttempt: "Explora un poco más los recursos de red que ella misma mencione.",
+      strengthToKeep: "Sostuviste la calma y no llenaste los silencios con soluciones.",
+      focusForNextAttempt: "Reflejar antes de proponer.",
       reflectionPrompts: [
         "¿qué notaste en ti mientras esperabas su respuesta?",
         "¿qué recurso propio te gustaría tener a mano para la próxima?",
       ],
+      nextChallenge: "En tu próxima conversación con Martina, antes de proponer algo prueba reflejar con tus palabras lo que ella te acaba de decir.",
+      mentorQuestion: "¿Cómo se practica el reflejo emocional en OASIS sin caer en repetir lo mismo que la persona dijo?",
+      ...overrides,
     };
-    const r = postProcessReport(raw, messages);
+  }
+
+  it("returns ok content when >=2 moments verify and balance rules pass", () => {
+    const r = postProcessReport(baseGoodReport(), messages);
     expect(r.ok).toBe(true);
     expect(r.content!.keyMoments).toHaveLength(2);
+    expect(r.content!.keyMoments[0]!.kind).toBe("acierto");
+    expect(r.content!.nextChallenge.length).toBeGreaterThan(0);
+    expect(r.content!.mentorQuestion.length).toBeGreaterThan(0);
   });
 
   it("marks moments_unverifiable when <2 moments survive", () => {
-    const raw = {
-      synthesis: "una conversación breve y todavía tentativa entre ustedes dos",
+    const raw = baseGoodReport({
       keyMoments: [
-        { quote: "esto lo inventé", oasisPhase: "OBSERVA", whatHappenedWithMartina: "algo con largo suficiente para pasar la validación" },
-        { quote: "esto tampoco existe", oasisPhase: "ACOGE", whatHappenedWithMartina: "algo con largo suficiente para pasar la validación" },
+        {
+          kind: "acierto",
+          quote: "esto lo inventé",
+          oasisPhase: "OBSERVA",
+          whatHappenedWithMartina: "algo con largo suficiente para pasar la validación",
+          whyItWorked: "algo con largo suficiente para pasar la validación",
+        },
+        {
+          kind: "oportunidad",
+          quote: "esto tampoco existe",
+          oasisPhase: "ACOGE",
+          whatHappenedWithMartina: "algo con largo suficiente para pasar la validación",
+          tip: {
+            advice: "algo con largo suficiente para pasar la validación de tip.advice",
+            examplePhrase: "una frase de ejemplo",
+          },
+        },
       ],
-      strengthToKeep: "algo con largo suficiente para pasar la validación",
-      focusForNextAttempt: "algo con largo suficiente para pasar la validación",
-      reflectionPrompts: ["primera pregunta abierta", "segunda pregunta abierta"],
-    };
+    });
     const r = postProcessReport(raw, messages);
     expect(r.ok).toBe(false);
     expect(r.reason).toBe("moments_unverifiable");
@@ -321,6 +365,66 @@ describe("postProcessReport", () => {
 
   it("marks schema_invalid on garbage input", () => {
     const r = postProcessReport({ nope: true }, messages);
+    expect(r.ok).toBe(false);
+    expect(r.reason).toBe("schema_invalid");
+  });
+
+  it("marks schema_invalid when first moment is not acierto (balance rule)", () => {
+    const raw = baseGoodReport({
+      keyMoments: [
+        {
+          kind: "oportunidad",
+          quote: "cuéntame cómo estás hoy",
+          oasisPhase: "OBSERVA",
+          whatHappenedWithMartina: "algo con largo suficiente",
+          tip: { advice: "consejo largo suficiente para pasar la validación", examplePhrase: "frase" },
+        },
+        {
+          kind: "acierto",
+          quote: "pensado en hacerte daño",
+          oasisPhase: "ACOGE",
+          whatHappenedWithMartina: "algo con largo suficiente",
+          whyItWorked: "principio simple",
+        },
+      ],
+    });
+    const r = postProcessReport(raw, messages);
+    expect(r.ok).toBe(false);
+    expect(r.reason).toBe("schema_invalid");
+  });
+
+  it("marks schema_invalid when there are more oportunidades than aciertos", () => {
+    // Add a 4th user message so 3 quotes can survive verification.
+    const extraMessages = [
+      ...messages,
+      u("con quién sientes confianza igual", 7),
+    ];
+    const raw = baseGoodReport({
+      keyMoments: [
+        {
+          kind: "acierto",
+          quote: "cuéntame cómo estás hoy",
+          oasisPhase: "OBSERVA",
+          whatHappenedWithMartina: "algo con largo suficiente",
+          whyItWorked: "principio simple",
+        },
+        {
+          kind: "oportunidad",
+          quote: "pensado en hacerte daño",
+          oasisPhase: "ACOGE",
+          whatHappenedWithMartina: "algo con largo suficiente",
+          tip: { advice: "consejo largo suficiente para pasar la validación", examplePhrase: "frase" },
+        },
+        {
+          kind: "oportunidad",
+          quote: "sientes confianza",
+          oasisPhase: "SOSTEN",
+          whatHappenedWithMartina: "algo con largo suficiente",
+          tip: { advice: "consejo largo suficiente para pasar la validación", examplePhrase: "frase" },
+        },
+      ],
+    });
+    const r = postProcessReport(raw, extraMessages);
     expect(r.ok).toBe(false);
     expect(r.reason).toBe("schema_invalid");
   });

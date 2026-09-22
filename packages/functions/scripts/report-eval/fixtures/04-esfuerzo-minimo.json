@@ -1,0 +1,40 @@
+{
+  "id": "04-esfuerzo-minimo",
+  "title": "Aprendiz de esfuerzo mínimo (respuestas de 2 o 3 palabras)",
+  "description": "Patrón real del taller de junio: docente que responde en monosílabos. El acierto debe ser real aunque pequeño (haber ido, haber preguntado); las oportunidades enmarcan el impulso sin vergüenza y proponen frases concretas para abrir espacio con menos palabras del docente y más presencia.",
+  "notes": "TODO_CLINICAL_VALIDATION — el desafío del generador es encontrar un acierto genuino con muy poca superficie textual.",
+  "wasResumedAfterCrisis": false,
+  "session": {
+    "state": "closed_completed",
+    "endedReason": "user_ended",
+    "sesionIniciadaEnIso": "2026-09-20T17:00:00Z",
+    "endedAtIso": "2026-09-20T17:03:00Z",
+    "scenarioId": "scenario_03_martina"
+  },
+  "messages": [
+    { "role": "assistant", "content": "Hola profe... nada, no es nada. Da lo mismo.", "turnNumber": 0 },
+    { "role": "user", "content": "Hola.", "turnNumber": 1 },
+    { "role": "assistant", "content": "Hola profe... (Baja la mirada al suelo).", "turnNumber": 2 },
+    { "role": "user", "content": "¿Cómo estás?", "turnNumber": 3 },
+    { "role": "assistant", "content": "Ehh... más o menos, profe. Da lo mismo igual.", "turnNumber": 4 },
+    { "role": "user", "content": "Ya. ¿Y en la casa?", "turnNumber": 5 },
+    { "role": "assistant", "content": "Normal. Mi mamá trabaja mucho. No sé.", "turnNumber": 6 },
+    { "role": "user", "content": "Ok. Cualquier cosa avísame.", "turnNumber": 7 },
+    { "role": "assistant", "content": "Ya profe.", "turnNumber": 8 }
+  ],
+  "turnos": [
+    { "turnoId": "t1", "rol": "usuario", "contenido": "Hola.", "deltas": { "intensidadEmocional": 0, "apertura": 0, "confianzaEnLaAyuda": 0 }, "tagsObservados": [], "antiPatronesDetectados": [] },
+    { "turnoId": "t2", "rol": "usuario", "contenido": "¿Cómo estás?", "deltas": { "intensidadEmocional": 0, "apertura": 0, "confianzaEnLaAyuda": 0 }, "tagsObservados": ["T_02_OBSERVA_NO_JUICIO_S03"], "antiPatronesDetectados": [] },
+    { "turnoId": "t3", "rol": "usuario", "contenido": "Ya. ¿Y en la casa?", "deltas": { "intensidadEmocional": 0, "apertura": 0, "confianzaEnLaAyuda": 0 }, "tagsObservados": [], "antiPatronesDetectados": [] },
+    { "turnoId": "t4", "rol": "usuario", "contenido": "Ok. Cualquier cosa avísame.", "deltas": { "intensidadEmocional": 0, "apertura": 0, "confianzaEnLaAyuda": 0 }, "tagsObservados": [], "antiPatronesDetectados": [] }
+  ],
+  "assertions": {
+    "expectedStatus": "ready",
+    "minKeyMoments": 2,
+    "maxKeyMoments": 4,
+    "forbiddenSubstrings": ["puntaje", "aprobado", "reprobado", "%", "nota", "deberías", "error", "incorrecto", "fallaste"],
+    "quoteMustAppearInUserMessages": true,
+    "martinaCueMustAppearInAssistantMessages": true,
+    "wasResumedAfterCrisis": false
+  }
+}

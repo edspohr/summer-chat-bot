@@ -32,7 +32,7 @@
     "expectedStatus": "ready",
     "minKeyMoments": 2,
     "maxKeyMoments": 4,
-    "forbiddenSubstrings": ["puntaje", "aprobado", "reprobado", "%", "nota"],
+    "forbiddenSubstrings": ["puntaje", "aprobado", "reprobado", "%", "nota", "deberías", "error", "incorrecto", "fallaste"],
     "quoteMustAppearInUserMessages": true,
     "martinaCueMustAppearInAssistantMessages": true,
     "wasResumedAfterCrisis": false
