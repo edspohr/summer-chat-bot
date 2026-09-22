@@ -1,6 +1,6 @@
 # Technical Debt Register
 
-_Last updated: 2026-09-22 (formative sprint 1 close — 0004/0013/0026 resolved, 0017 partially; 0023/0024/0025/0027/0028 registered)_
+_Last updated: 2026-09-21 (post-deploy log review — 0029/0030 registered for Sprint 2)_
 
 | ID | Title | Severity | Status |
 |---|---|---|---|
@@ -32,6 +32,8 @@ _Last updated: 2026-09-22 (formative sprint 1 close — 0004/0013/0026 resolved,
 | [0026](0026-eslint-not-installed.md) | ESLint config exists but the tool is not installed — `react-hooks/rules-of-hooks` is defined but never runs | medium | resolved 2026-09-21 (web only) |
 | [0027](0027-vertexai-class-deprecated.md) | `@google-cloud/vertexai` VertexAI class deprecated (kill date 2026-06-24, past). Migrate to `@google/genai` in Fase 3. | **high** | open |
 | [0028](0028-callb-raw-log-privacy.md) | `callB.ts` logs up to 500 chars of raw JSON on parse failure — may include trainee content | medium | open |
+| [0029](0029-report-wait-counts-crisis-message.md) | Report generator waits full 4s on resumed sessions — safetyLayerTriggered message inflates the delta forever | low | open |
+| [0030](0030-feedback-retry-rate-observability.md) | Feedback `schema_invalid` retry rate not observable; instrument, then evaluate `responseSchema` if >⅓ | low | open |
 
 > **Debt 0003 is the highest urgency**: Layer 3 regex patterns are the first line of defense
 > for real crisis detection. Without clinical validation, there is risk of false negatives
