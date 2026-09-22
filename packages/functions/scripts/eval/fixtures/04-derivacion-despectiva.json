@@ -1,0 +1,30 @@
+{
+  "id": "04-derivacion-despectiva",
+  "title": "Derivación despectiva — 'habla con la psicóloga y ya'",
+  "description": "El aprendiz deriva a Martina a la orientadora sin acompañamiento, con tono desatendido. El addendum vigente (2026-09-21) marca esto como caída SUAVE de confianza (-1 por derivación fría; -2 solo si además hay quiebre de confidencialidad). Nunca reset a 0.",
+  "scenarioId": "scenario_03_martina",
+  "notes": "TODO_CLINICAL_VALIDATION — el fixture originalmente esperaba RESET_ZERO. La regla dura de reset se ELIMINÓ del addendum: 'Never output RESET_ZERO. Use integer deltas only for this variable.' CLAUDE.md sección 12 aún describe el reset — decisión clínica pendiente: reset duro vs caída suave. Este fixture sigue al addendum vigente.",
+  "turns": [
+    {
+      "trainee": "Ah, ya. Mira, para esto está la psicóloga del colegio. Habla con ella y ya. Yo tengo que ir a otra clase.",
+      "dryRunMartina": "Ya po, profe. Ya. Está bien... me voy igual.",
+      "expected": {
+        "matrix": { "intensidadEmocional": "up", "apertura": "down", "confianzaEnLaAyuda": "down" },
+        "martinaMinChars": 15,
+        "martinaMaxChars": 720,
+        "requiresFrameBreakTag": false,
+        "notes": "Derivación fría sin acompañamiento → -1 confianza según el addendum."
+      }
+    },
+    {
+      "trainee": "Bueno, si necesitas algo más, ya sabes dónde encontrarme.",
+      "dryRunMartina": "Ya, profe. Chao.",
+      "expected": {
+        "matrix": { "intensidadEmocional": "stable", "apertura": "stable", "confianzaEnLaAyuda": "stable" },
+        "martinaMinChars": 5,
+        "martinaMaxChars": 720,
+        "requiresFrameBreakTag": false
+      }
+    }
+  ]
+}

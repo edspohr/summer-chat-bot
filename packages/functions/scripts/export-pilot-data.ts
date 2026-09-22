@@ -30,6 +30,7 @@ import {
   phaseFromTagId,
   initialMatrixFor,
   MARTINA_INITIAL_MATRIX,
+  SESSION_COMPLETE_AT_SECONDS,
   type OasisPhase,
 } from "@salvador/shared";
 
@@ -244,7 +245,8 @@ async function main(): Promise<void> {
   const deltas = { intensidadEmocional: [] as number[], apertura: [] as number[], confianzaEnLaAyuda: [] as number[] };
   const monthly = new Map<string, { sessions: number; dwellMinutesList: number[]; userTurnsList: number[]; safety: number }>();
   let safetyCount = 0;
-  const DWELL_THRESHOLD_MIN = 5;
+  // Single source of truth for the "session complete" threshold (5 min).
+  const DWELL_THRESHOLD_MIN = SESSION_COMPLETE_AT_SECONDS / 60;
   let sessionsAtOrOverThreshold = 0;
 
   for (const doc of snap.docs) {

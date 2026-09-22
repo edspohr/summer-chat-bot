@@ -11,9 +11,13 @@ import { CrisisOverlay } from "../components/CrisisOverlay.js";
 import { EmotionalMatrix } from "../components/EmotionalMatrix.js";
 import { HelpButton } from "../components/HelpButton.js";
 import { FramingModal } from "../components/FramingModal.js";
+import { Composer } from "../components/Composer.js";
+import { SessionClosingScreen } from "../components/SessionClosingScreen.js";
 import { useFramingAck } from "../hooks/useFramingAck.js";
 import { readCohort } from "../lib/cohort.js";
+import { callEndSession } from "../lib/functions.js";
 import type { Scenario } from "@salvador/shared";
+import { SESSION_COMPLETE_AT_SECONDS } from "@salvador/shared";
 
 // ── Warning text ───────────────────────────────────────────────────────────
 // The 10-min mark was intentionally removed — trainees found the "cerrar con
@@ -196,11 +200,10 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
     send,
     isLoading,
     crisisTemplate,
-    clearCrisis,
+    resumeCrisis,
     estadoMatriz,
     timerState,
-    timerExpired,
-    latenciaMs,
+    serverClosedState,
     rateLimit,
     clearRateLimit,
     crisisMeta,
@@ -267,54 +270,131 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
     setWarningMessage(TIMER_WARNINGS[at]);
   }, []);
 
-  const { phase, displayMmSs, syncFromServer } = useSessionTimer(handleWarning);
+  const { phase, displayMmSs, elapsedSeconds, syncFromServer } = useSessionTimer(handleWarning);
 
   // Sync timer whenever we get a new timerState from the server
   useEffect(() => {
     if (timerState !== null) syncFromServer(timerState);
   }, [timerState, syncFromServer]);
 
-  // If server signals timer expired (admin-side), still allow navigation manually
   const goToReport = useCallback(() => {
     navigate(`/report/${sessionId}?scenarioId=${scenario.id}`);
   }, [navigate, sessionId, scenario.id]);
 
+  const goHome = useCallback(() => navigate("/inicio"), [navigate]);
+
+  // Closing-screen orchestration. `serverClosedState` covers three paths:
+  //   closed_inactivity (scheduler)  → PRO-03 with "inactivity" copy.
+  //   closed_completed  (endSession) → PRO-03 with "user_ended" copy.
+  //   crisis_interrupted             → keep the crisis overlay path; no PRO-03.
+  const [closingReason, setClosingReason] =
+    useState<"inactivity" | "user_ended" | null>(null);
+  // Duration shown on PRO-03 is frozen at the moment of transition to a
+  // closed state — the live timer keeps ticking otherwise, which showed
+  // "5:27" for a session actually closed at 4:07 in the smoke test.
+  const [frozenElapsedSeconds, setFrozenElapsedSeconds] = useState<number | null>(null);
   useEffect(() => {
-    if (timerExpired) goToReport();
-  }, [timerExpired, goToReport]);
+    if (closingReason !== null) return;
+    if (serverClosedState === "closed_inactivity") {
+      setClosingReason("inactivity");
+      setFrozenElapsedSeconds(elapsedSeconds);
+    } else if (serverClosedState === "closed_completed") {
+      setClosingReason("user_ended");
+      setFrozenElapsedSeconds(elapsedSeconds);
+    }
+  }, [serverClosedState, closingReason, elapsedSeconds]);
+
+  // "Terminar sesión" flow: below the 5-minute threshold, ask before ending.
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
+  const [endingSession, setEndingSession] = useState(false);
+
+  const endSessionNow = useCallback(async () => {
+    setEndingSession(true);
+    try {
+      await callEndSession({ sessionId });
+    } catch (err) {
+      // If the server call fails, still transition the UI — the inactivity
+      // scheduler will pick the session up later. Log for visibility.
+      console.error("[END_SESSION] server call failed, transitioning locally", err);
+    } finally {
+      setEndingSession(false);
+      setShowEndConfirm(false);
+      setFrozenElapsedSeconds(elapsedSeconds);
+      setClosingReason("user_ended");
+    }
+  }, [sessionId, elapsedSeconds]);
+
+  const handleEndClick = useCallback(() => {
+    if (elapsedSeconds < SESSION_COMPLETE_AT_SECONDS) {
+      setShowEndConfirm(true);
+    } else {
+      void endSessionNow();
+    }
+  }, [elapsedSeconds, endSessionNow]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const inputLocked = isLoading || crisisTemplate !== null || timerExpired || !framingAcknowledged;
+  const inputLocked =
+    isLoading || crisisTemplate !== null || closingReason !== null || !framingAcknowledged;
 
-  async function handleSend() {
+  const handleSend = useCallback(async () => {
     const text = input.trim();
     if (!text || inputLocked) return;
     setInput("");
     const ok = await send(text);
-    // Functional updater: `input` from closure is frozen at pre-clear value across
-    // the await. Read current state via the updater to avoid clobbering anything
-    // the trainee has already typed after their send failed.
     if (!ok) setInput((curr) => (curr === "" ? text : curr));
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void handleSend();
-    }
-  }
+  }, [input, inputLocked, send]);
 
   return (
     <main className="h-screen flex flex-col bg-warm-bg max-w-2xl mx-auto overflow-hidden">
       {!framingAcknowledged && <FramingModal onAcknowledge={acknowledgeFraming} />}
 
+      {closingReason !== null && (
+        <SessionClosingScreen
+          reason={closingReason}
+          elapsedSeconds={frozenElapsedSeconds ?? elapsedSeconds}
+          onViewReport={goToReport}
+          onGoHome={goHome}
+          sessionId={sessionId}
+        />
+      )}
+
+      {showEndConfirm && (
+        <div className="fixed inset-0 z-50 bg-warm-bg/95 backdrop-blur-sm flex items-center justify-center px-6">
+          <div className="w-full max-w-sm bg-white rounded-3xl shadow-xl border border-stone-100 p-7 space-y-5">
+            <div className="space-y-2 text-center">
+              <h2 className="font-title uppercase tracking-wide text-stone-800 text-base">
+                ¿Terminar la sesión?
+              </h2>
+              <p className="font-secondary text-sm text-stone-600 leading-relaxed">
+                Todavía no han pasado 5 minutos. Puedes seguir conversando con Martina, o ir al informe con lo que llevas hasta ahora.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <button
+                onClick={() => setShowEndConfirm(false)}
+                className="w-full bg-summer-blue hover:bg-blue-400 text-white rounded-2xl px-5 py-3 text-sm font-bold font-secondary tracking-wide transition-colors shadow-sm"
+              >
+                Seguir en la sesión
+              </button>
+              <button
+                onClick={() => void endSessionNow()}
+                disabled={endingSession}
+                className="w-full bg-transparent hover:bg-stone-50 text-stone-500 rounded-2xl px-5 py-3 text-sm font-secondary tracking-wide transition-colors border border-stone-200 disabled:opacity-50"
+              >
+                {endingSession ? "Cerrando…" : "Ir al informe igual"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {crisisTemplate !== null && (
         <CrisisOverlay
           template={crisisTemplate}
-          onConfirmResume={clearCrisis}
+          onConfirmResume={() => void resumeCrisis()}
           canResume={true}
           crisisMeta={crisisMeta}
           onChooseBranch={chooseCrisisBranch}
@@ -335,9 +415,11 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate("/scenarios")}
-            className="text-stone-400 hover:text-summer-blue text-xl px-1 transition-colors"
+            className="flex items-center gap-1 px-2 h-9 rounded-full text-stone-500 hover:text-summer-blue hover:bg-summer-blue/10 transition-colors text-xs font-secondary"
+            aria-label="Volver a escenarios"
           >
-            ←
+            <span aria-hidden="true">←</span>
+            <span>Escenarios</span>
           </button>
           <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-summer-peach/20 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm border border-stone-100">
             {scenario.persona.avatarUrl ? (
@@ -362,6 +444,14 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
             </p>
           </div>
           <TimerChip phase={phase} display={displayMmSs} />
+          <button
+            onClick={handleEndClick}
+            disabled={endingSession || closingReason !== null}
+            className="text-xs font-secondary font-bold px-3 py-1.5 rounded-full bg-stone-100 hover:bg-summer-blue/10 text-stone-500 hover:text-summer-blue transition-colors disabled:opacity-40"
+            title="Terminar la sesión y ver el informe"
+          >
+            Terminar
+          </button>
         </div>
         <div className="flex">
           <span className="bg-summer-yellow/60 text-stone-700 font-secondary text-xs rounded-full px-3 py-1">
@@ -414,23 +504,16 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
             <div ref={bottomRef} />
           </div>
 
-          <div className="border-t border-stone-100 bg-white px-4 pt-3 pb-4 flex gap-3 items-end shadow-sm z-10 relative">
-            <textarea
+          <div className="border-t border-stone-100 bg-white px-4 pt-3 pb-4 shadow-sm z-10 relative">
+            <Composer
               value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Escribe tu respuesta..."
-              rows={1}
+              onChange={setInput}
+              onSend={() => void handleSend()}
               disabled={inputLocked}
-              className="flex-1 resize-none rounded-2xl border border-stone-200 bg-warm-bg px-4 py-3 font-secondary text-sm focus:outline-none focus:ring-2 focus:ring-summer-blue/50 disabled:opacity-50 transition-all"
+              placeholder="Escribe tu respuesta..."
+              sendLabel="Enviar"
+              variant="coach"
             />
-            <button
-              onClick={() => void handleSend()}
-              disabled={inputLocked || !input.trim()}
-              className="bg-summer-blue hover:bg-blue-400 text-white rounded-2xl px-5 py-3 text-sm font-bold font-secondary tracking-wide disabled:opacity-40 transition-colors shadow-sm"
-            >
-              Enviar
-            </button>
           </div>
         </div>
 

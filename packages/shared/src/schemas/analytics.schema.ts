@@ -52,6 +52,12 @@ export interface RollupGroup {
   cohortCode: string | null;
 
   sessionsStarted: number;
+  /**
+   * Sessions whose dwell time reached the "session complete" threshold
+   * (SESSION_COMPLETE_AT_SECONDS, currently 5 minutes). Includes sessions still
+   * active if they've already crossed the bar. Missing dwell → not counted.
+   */
+  sessionsComplete: number;
   uniqueDevices: number;
 
   ended: EndBreakdown;

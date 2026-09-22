@@ -1,13 +1,13 @@
 # Technical Debt Register
 
-_Last updated: 2026-09-02 (0022 added — engine should read initial matrix from scenario doc)_
+_Last updated: 2026-09-22 (formative sprint 1 close — 0004/0013/0026 resolved, 0017 partially; 0023/0024/0025/0027/0028 registered)_
 
 | ID | Title | Severity | Status |
 |---|---|---|---|
 | [0001](0001-embedding-sync.md) | Embedding sync — one-time seed doesn't detect modified chunks | medium | open |
 | [0002](0002-vector-search-scale.md) | Firestore vector search untested at scale (>500 chunks) | medium | open |
 | [0003](0003-safety-regex-clinical-validation.md) | Layer 3 regex patterns pending clinical co-validation with Fundación Summer | **high** | open — production blocker |
-| [0004](0004-report-generation-stub.md) | reportGenerator.ts is a stub — real logic depends on pending clinical decisions | medium | open |
+| [0004](0004-report-generation-stub.md) | reportGenerator.ts is a stub — real logic depends on pending clinical decisions | medium | resolved 2026-09-21 (Fase 4 step 2) |
 | [0005](0005-java-path-emulators.md) | Java not in system PATH — Firestore emulator requires manual PATH export | low | open |
 | [0006](0006-knowledge-base-not-seeded.md) | Knowledge base not seeded — Mentor RAG returns empty until Firestore is populated | **high** | partially-resolved — seed script done, needs emulator run + index deploy |
 | [0007](0007-pricing-constants.md) | Pricing constants hardcoded to May 2026 rates — verify before prod launch | low | open |
@@ -16,7 +16,7 @@ _Last updated: 2026-09-02 (0022 added — engine should read initial matrix from
 | [0010](0010-lab-sessions-firestore-rules.md) | lab_sessions Firestore collection has no security rules | **high** | implemented |
 | [0011](0011-matias-scenario-missing.md) | Scenario 02 (Matías) has no definition document or Firestore seed data | medium | open |
 | [0012](0012-docs-project-naming.md) | docs/03_arquitectura_tecnica.md references incorrect Firebase project names | low | open |
-| [0013](0013-nodejs20-deprecation.md) | Cloud Functions runtime nodejs20 deprecated — upgrade to nodejs22 before 2026-10-30 | **high** | open — deadline 2026-10-30 |
+| [0013](0013-nodejs20-deprecation.md) | Cloud Functions runtime nodejs20 deprecated — upgrade to nodejs22 before 2026-10-30 | **high** | resolved 2026-09-18 (dev only; prod still gated) |
 | [0014](0014-pnpm-workspace-cloudbuild.md) | pnpm workspace:* incompatible with Cloud Build npm — resolved via file:../shared | medium | implemented |
 | [0015](0015-matrix-no-sse-streaming.md) | Matrix state delivered via callable response, not real-time Firestore listener | medium | open |
 | [0016](0016-lab-matrix-no-turn-persistence.md) | Lab matrix state not persisted to turns subcollection (session doc only) | low | open |
@@ -26,6 +26,12 @@ _Last updated: 2026-09-02 (0022 added — engine should read initial matrix from
 | [0020](0020-est01-finishreason-observability.md) | Call A `finishReason` logged as plain text; no client-side fallback for truncated Martina | medium | open |
 | [0021](0021-vitest-firebase-admin-init-hang.md) | Vitest hangs on any test file that imports `src/config/firebase.ts` (matrixEngine, timerService) | medium | open |
 | [0022](0022-engine-should-read-initial-matrix-from-scenario.md) | Engine should read initial matrix state from the scenario doc, not a per-scenario hard-coded map — gated on PRO-07 | medium | open |
+| [0023](0023-firebase-functions-v7-http-discovery.md) | firebase-functions@7 HTTP discovery hangs on this env — must use `FIREBASE_FUNCTIONS_DISCOVERY_OUTPUT_PATH=true` | low | workaround-in-use |
+| [0024](0024-llmclassifier-product-name.md) | `safety/llmClassifier.ts` Layer 2 prompt still says "Salvador" — deferred until Layer 2 safety fixtures exist | low | open |
+| [0025](0025-adc-hang-no-error.md) | Local admin scripts hang silently when ADC are missing or expired | low | open |
+| [0026](0026-eslint-not-installed.md) | ESLint config exists but the tool is not installed — `react-hooks/rules-of-hooks` is defined but never runs | medium | resolved 2026-09-21 (web only) |
+| [0027](0027-vertexai-class-deprecated.md) | `@google-cloud/vertexai` VertexAI class deprecated (kill date 2026-06-24, past). Migrate to `@google/genai` in Fase 3. | **high** | open |
+| [0028](0028-callb-raw-log-privacy.md) | `callB.ts` logs up to 500 chars of raw JSON on parse failure — may include trainee content | medium | open |
 
 > **Debt 0003 is the highest urgency**: Layer 3 regex patterns are the first line of defense
 > for real crisis detection. Without clinical validation, there is risk of false negatives

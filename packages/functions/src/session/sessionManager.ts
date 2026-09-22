@@ -25,6 +25,10 @@ export interface SessionManagerService {
     evaluatorOutput?: EvaluatorRawOutput;
     safetyLayerTriggered?: "L1" | "L2" | "L3";
     promptVersion: string;
+    // Free-form metadata written verbatim to the message doc under `meta`.
+    // Currently used by the inactivity scheduler ({ isNudge: true }) so
+    // rollupBuilder and the pilot export can count nudges vs regular turns.
+    meta?: Record<string, unknown>;
   }): Promise<void>;
 
   updateState(sessionId: string, state: SessionState): Promise<void>;
@@ -98,7 +102,7 @@ export function createSessionManager(): SessionManagerService {
       return messages;
     },
 
-    async appendMessage({ sessionId, role, content, turnNumber, evaluatorOutput, safetyLayerTriggered, promptVersion }) {
+    async appendMessage({ sessionId, role, content, turnNumber, evaluatorOutput, safetyLayerTriggered, promptVersion, meta }) {
       const sessionRef = sessions.doc(sessionId);
       const msgRef = sessionRef.collection("messages").doc();
 
@@ -112,6 +116,7 @@ export function createSessionManager(): SessionManagerService {
       };
       if (evaluatorOutput !== undefined) msgData["evaluatorOutput"] = evaluatorOutput;
       if (safetyLayerTriggered !== undefined) msgData["safetyLayerTriggered"] = safetyLayerTriggered;
+      if (meta !== undefined) msgData["meta"] = meta;
 
       const batch = db.batch();
       batch.set(msgRef, msgData);

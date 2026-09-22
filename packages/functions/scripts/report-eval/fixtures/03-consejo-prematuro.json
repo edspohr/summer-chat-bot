@@ -1,0 +1,40 @@
+{
+  "id": "03-consejo-prematuro",
+  "title": "Consejo prematuro y prescriptivo",
+  "description": "La docente salta a soluciones y consejos antes de acoger la emoción. Verifica que el informe encuadre el impulso como humano ('es natural querer dar soluciones cuando vemos sufrir a alguien') antes del consejo, sin tono de corrección, y que el acierto citado sea real aunque pequeño.",
+  "notes": "TODO_CLINICAL_VALIDATION — anti-patrón clásico del taller de junio. Espejo del fixture 02 del motor de evaluación.",
+  "wasResumedAfterCrisis": false,
+  "session": {
+    "state": "closed_completed",
+    "endedReason": "user_ended",
+    "sesionIniciadaEnIso": "2026-09-20T16:00:00Z",
+    "endedAtIso": "2026-09-20T16:06:00Z",
+    "scenarioId": "scenario_03_martina"
+  },
+  "messages": [
+    { "role": "assistant", "content": "Hola profe... (Pausa. Baja la vista al suelo y ajusta la mochila al hombro, como si estuviera a punto de irse)... nada, no es nada. Da lo mismo.", "turnNumber": 0 },
+    { "role": "user", "content": "Hola Martina. Te noté rara últimamente. Lo que tienes que hacer es dormir mejor, dejar el celular más temprano y hacer más deporte. Eso te va a ayudar seguro.", "turnNumber": 1 },
+    { "role": "assistant", "content": "Ehh... ya, profe... sí po. Igual el celu no es tanto... (se encoge de hombros y mira al pasillo).", "turnNumber": 2 },
+    { "role": "user", "content": "Además tienes que enfocarte en los estudios. Estás en tercero medio, no puedes distraerte con estas cosas. Un poquito de esfuerzo y se te va a pasar.", "turnNumber": 3 },
+    { "role": "assistant", "content": "Ya po, profe. Sí, voy a estudiar. Es que igual tengo que irme...", "turnNumber": 4 },
+    { "role": "user", "content": "Espera, no te vayas todavía. Cuéntame cómo te fue en las últimas pruebas.", "turnNumber": 5 },
+    { "role": "assistant", "content": "Ehh... más o menos, profe... la de matemática la reprobé. Da lo mismo, igual me pongo al día.", "turnNumber": 6 },
+    { "role": "user", "content": "Bueno. Cualquier cosa me avisas.", "turnNumber": 7 },
+    { "role": "assistant", "content": "Ya profe. Chao.", "turnNumber": 8 }
+  ],
+  "turnos": [
+    { "turnoId": "t1", "rol": "usuario", "contenido": "Hola Martina...", "deltas": { "intensidadEmocional": 1, "apertura": -1, "confianzaEnLaAyuda": 0 }, "tagsObservados": [], "antiPatronesDetectados": ["prescripcion-sin-elicitacion"] },
+    { "turnoId": "t2", "rol": "usuario", "contenido": "Además tienes que enfocarte...", "deltas": { "intensidadEmocional": 1, "apertura": -1, "confianzaEnLaAyuda": 0 }, "tagsObservados": [], "antiPatronesDetectados": ["autoridad-escolar"] },
+    { "turnoId": "t3", "rol": "usuario", "contenido": "Espera, no te vayas...", "deltas": { "intensidadEmocional": 0, "apertura": 0, "confianzaEnLaAyuda": 0 }, "tagsObservados": [], "antiPatronesDetectados": [] },
+    { "turnoId": "t4", "rol": "usuario", "contenido": "Bueno. Cualquier cosa me avisas.", "deltas": { "intensidadEmocional": 0, "apertura": 0, "confianzaEnLaAyuda": 0 }, "tagsObservados": [], "antiPatronesDetectados": [] }
+  ],
+  "assertions": {
+    "expectedStatus": "ready",
+    "minKeyMoments": 2,
+    "maxKeyMoments": 4,
+    "forbiddenSubstrings": ["puntaje", "aprobado", "reprobado", "%", "nota", "deberías", "error", "incorrecto", "fallaste"],
+    "quoteMustAppearInUserMessages": true,
+    "martinaCueMustAppearInAssistantMessages": true,
+    "wasResumedAfterCrisis": false
+  }
+}

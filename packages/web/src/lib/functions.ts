@@ -54,8 +54,12 @@ export interface CoachTurnResponse {
   tagUpdates: number;
   estadoMatriz: EstadoMatriz | null;
   timerState: TimerState | null;
-  timerExpired?: boolean;
   latenciaMs: { personaje: number; evaluador: number; total: number } | null;
+  // Server refused to process the turn because the session is no longer in
+  // an active state. Client should transition to the closing screen (for
+  // closed_*) or ensure the crisis overlay is showing (for crisis_interrupted).
+  sessionClosed?: boolean;
+  closedState?: "closed_inactivity" | "closed_completed" | "crisis_interrupted";
   // Phase 3 — populated when the server-side token bucket rejected this turn.
   // Client should show a friendly toast and not append any assistant reply.
   rateLimited?: boolean;
@@ -77,20 +81,53 @@ export interface CrisisBranchResponse {
   feedbackText: string | null;
 }
 
-export interface TimerOverrideRequest {
+export interface EndSessionRequest {
   sessionId: string;
-  anular: boolean;
+}
+export interface EndSessionResponse {
+  success: boolean;
+  alreadyClosed: boolean;
+  state: string | null;
 }
 
-export interface TimerOverrideResponse {
+export interface ResumeAfterCrisisRequest {
+  sessionId: string;
+}
+export interface ResumeAfterCrisisResponse {
   success: boolean;
-  cronometroAnulado: boolean;
+  alreadyActive: boolean;
+  state: string | null;
+}
+
+// Fase 4 — formative report.
+export interface GenerateSessionReportRequest {
+  sessionId: string;
+}
+export interface GenerateSessionReportResponse {
+  report: import("@salvador/shared").FormativeReport;
+  didWork: boolean;
+}
+
+// Fase 4 — trainee self-reflection with Layer 3 gate.
+export interface SaveReflectionRequest {
+  sessionId: string;
+  text: string;
+}
+export interface SaveReflectionResponse {
+  saved: boolean;
+  safetyMatch: import("@salvador/shared").ReflectionSafetyMatch | null;
 }
 
 export const callMentorChat = getCallable<MentorChatRequest, MentorChatResponse>("mentorChat");
 export const callCoachTurn = getCallable<CoachTurnRequest, CoachTurnResponse>("coachTurn");
-export const callTimerOverride = getCallable<TimerOverrideRequest, TimerOverrideResponse>("timerOverride");
 export const callCrisisBranch = getCallable<CrisisBranchRequest, CrisisBranchResponse>("crisisBranch");
+export const callEndSession = getCallable<EndSessionRequest, EndSessionResponse>("endSession");
+export const callResumeAfterCrisis =
+  getCallable<ResumeAfterCrisisRequest, ResumeAfterCrisisResponse>("resumeAfterCrisis");
+export const callGenerateSessionReport =
+  getCallable<GenerateSessionReportRequest, GenerateSessionReportResponse>("generateSessionReport");
+export const callSaveReflection =
+  getCallable<SaveReflectionRequest, SaveReflectionResponse>("saveReflection");
 
 // ── Latency Lab (dev-only) ─────────────────────────────────────────────────
 

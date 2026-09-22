@@ -1,7 +1,16 @@
 # Documento de Arquitectura Inicial — Chatbot Salvador
 ## Fundación Summer · Primeros Auxilios Emocionales · Prevención del Suicidio
 
-**Proyecto**: Salvador  
+> **Nombre de producto**: el nombre visible al participante es **Summer ChatBot**
+> (fuente única: `PRODUCT_NAME` en `@salvador/shared`). "Salvador" es solo el
+> nombre interno del repositorio y permanece en identificadores de código
+> (`@salvador/*` packages, símbolos TypeScript, colecciones Firestore). Nunca
+> debe aparecer "Salvador" en un string visible al usuario. Grep de control:
+> `grep -rn "[Ss]alvador" packages/{web,functions,shared}/src` no debe devolver
+> nada fuera de `@salvador/`, `salvador.cohortCode` (localStorage key), o el
+> prompt del Layer 2 classifier (debt-0024).
+
+**Proyecto** (nombre interno de repo): Salvador  
 **Cliente**: Fundación Summer (Chile)  
 **Autor técnico**: Edmundo Spohr · Growth Buddies SpA  
 **Fecha**: Mayo 2026  
@@ -21,7 +30,7 @@ Salvador es un chatbot de entrenamiento en primeros auxilios emocionales para la
 
 | Componente | Versión |
 |---|---|
-| Node.js | 20 LTS |
+| Node.js | 22 LTS |
 | TypeScript | 5.x strict mode |
 | pnpm | 9.x (workspace) |
 | Firebase CLI | latest compatible con Gen2 |
@@ -105,11 +114,38 @@ pnpm --filter @salvador/functions build
 pnpm --filter @salvador/web dev
 
 firebase emulators:start              # Firestore + Functions + Auth emulados
-firebase deploy --only functions
-firebase deploy --only hosting
-firebase deploy                       # deploy todo (requiere review manual)
 
-# NUNCA en sesiones de Claude Code: no ejecutar npm run build ni npm run lint.
+# DEPLOY — regla dura (2026-09-21).
+# 1) Un solo deploy a la vez. Nunca dos deploys concurrentes al mismo proyecto:
+#    los prompts interactivos se cruzan y el que responde después sobrescribe.
+# 2) Los deploys los corre SIEMPRE el dueño del entorno desde su terminal.
+#    Ni Claude Code ni un agente asistente ejecuta `firebase deploy` a dev o prod.
+#    (Precedente: 2026-09-21 — un deploy asistido y uno del owner corrieron en
+#    paralelo, el owner esperó el prompt una hora, y al aceptar sobrescribió
+#    6 funciones con un paquete anterior al commit corriente.)
+# 3) Nunca dejar un `firebase deploy` esperando un prompt interactivo. Si hay
+#    prompts que aceptar (eliminaciones huérfanas), pasar `--force` y saber
+#    de antemano qué se elimina — o cancelar y re-planear.
+# 4) El prefijo FIREBASE_FUNCTIONS_DISCOVERY_OUTPUT_PATH=true es obligatorio
+#    desde el bump a firebase-functions@7 (ver docs/debt/0023). Sin él, la
+#    CLI cuelga la discovery HTTP y falla con "User code failed to load.
+#    Timeout after 10000".
+FIREBASE_FUNCTIONS_DISCOVERY_OUTPUT_PATH=true firebase deploy --only functions --project summer-chatbot-dev
+FIREBASE_FUNCTIONS_DISCOVERY_OUTPUT_PATH=true firebase deploy --only hosting   --project summer-chatbot-dev
+FIREBASE_FUNCTIONS_DISCOVERY_OUTPUT_PATH=true firebase deploy                  --project summer-chatbot-dev   # todo, review manual
+
+# Troubleshooting local: si un script (list-rollups, export-daily-metrics, etc.)
+# se cuelga sin output, las Application Default Credentials están expiradas.
+# Renovar con:
+#   gcloud auth application-default login --account=edmundo@spohr.cl
+#   gcloud auth application-default set-quota-project summer-chatbot-dev
+
+# Lint (only the web package has a script today — debt-0026 resolved 2026-09-21).
+# eslint stack lives at the workspace root (eslint 8 + typescript-eslint 6 +
+# eslint-plugin-react-hooks 4). Runs against packages/web/src.
+pnpm --filter @salvador/web lint
+
+# NUNCA en sesiones de Claude Code: no ejecutar npm run build.
 ```
 
 ---
@@ -127,7 +163,7 @@ Flujo por turno:
     → retrieve top-5 chunks from knowledge_base (Firestore vector search)
     → assemble prompt: SYSTEM + RAG_CONTEXT + CONVERSATION_HISTORY + USER_MESSAGE
     → single Gemini call (temperature 0.7, streaming)
-    → store message + prompt_version in Firestore
+    → store message + promptVersion in Firestore (sessions/{id}/messages with mode="mentor")
     → stream response to UI
 ```
 
@@ -196,7 +232,7 @@ Un falso positivo (pausar innecesariamente) es visible y molesto. Un falso negat
 
 ## 7. Versionado de prompts
 
-Prompts en `docs/prompts/`. Convención: `mentor_v1.md`, `coach_conversational_v1.md`, `coach_evaluator_v1.md`. Todo mensaje en Firestore incluye `prompt_version`. Cambios significativos requieren ADR. El prompt del evaluador versiona separado del conversacional.
+Prompts en `docs/prompts/`. Convención: `mentor_v1.md`, `coach_conversational_v1.md`, `coach_evaluator_v1.md`. Todo mensaje en Firestore incluye `promptVersion` (camelCase). Cambios significativos requieren ADR. El prompt del evaluador versiona separado del conversacional.
 
 ---
 
@@ -233,6 +269,8 @@ It is never shown to training participants or to Fundación Summer.
 The route has no link in any participant-visible navigation — access is by direct URL only.
 The Cloud Function `labChat` is exported from `packages/functions/src/index.ts` and
 persists to a separate Firestore collection (`lab_sessions`) isolated from production data.
+Note: `lab_sessions` is not yet materialized in `summer-chatbot-dev` — it is created
+on first successful Lab turn from an admin session.
 
 Deploy commands — MANUAL ONLY, never automated:
 
@@ -274,7 +312,7 @@ initial values shown for scenario_03 (Martina):
 |---|---|---|---|---|
 | `intensidadEmocional` | 6 | 1 | 1..10 | ≥2 until trustInHelp≥7 AND derivacionAcordada |
 | `apertura` | 5 | 10 | 1..10 | — |
-| `confianzaEnLaAyuda` | 4 | 10 | 0..10 | Hard reset to 0 on dismissive referral |
+| `confianzaEnLaAyuda` | 4 | 10 | 0..10 | Soft drop (−1 cold referral, −2 dismissive + confidentiality breach). No hard reset. |
 
 **Runtime source of truth** for the initial values is `MARTINA_INITIAL_MATRIX`
 in `packages/shared/src/oasis/initialMatrix.ts` (re-exported as
@@ -289,15 +327,41 @@ read initials from the scenario doc.
 Deltas are applied in `packages/functions/src/coach/matrixEngine.ts`.
 Turn-level audit stored in `sessions/{id}/turnos/{turnoId}`.
 
-### Timer rules
+**Reset vs soft drop for confianzaEnLaAyuda — pending clinical decision.**
+The addendum in `matrixConstants.ts::MATRIX_EVALUATOR_ADDENDUM` (vigent as of
+2026-09-21) states: _"Never output RESET_ZERO. Use integer deltas only for
+this variable."_ The engine's `applyMatrixDelta` still recognises the
+`RESET_ZERO` sentinel (backward compat), but Call B no longer produces it.
+`docs/eval/GUIDELINES.md` flags this as a clinical decision waiting on
+Camila. Older commits and prior versions of this table said "hard reset to
+0 on dismissive referral"; that behaviour has been softened.
 
-- 10-minute session (600 seconds), starts on **first user turn** (not page load).
-- `sesionIniciadaEn` stored as ISO-8601 string in the session doc.
-- Client derives remaining time from server-provided `sesionIniciadaEn` (no drift accumulation).
-- **The timer does NOT pause on user inactivity** — the 10 minutes are continuous real-world time.
-  This is intentional: it simulates the pressure of a real first-response conversation.
-- Admin override: `cronometroAnulado: true` disables the hard cutoff (soft/advisory in that state).
-- Timer override callable: `timerOverride` Cloud Function (admin role required).
+### Timer rules (revised 2026-09-20, Fase 1)
+
+- **No hard cutoff.** The timer counts up from `sesionIniciadaEn` and is used
+  for display and analytics only. There is no auto-close at N minutes.
+- `sesionIniciadaEn` stored as ISO-8601 string in the session doc; starts on
+  the **first user turn** (not page load). Idempotent via `maybeStartTimer`.
+- Client derives elapsed time from server-provided `sesionIniciadaEn` (no
+  drift accumulation). `TimerState` is now `{sesionIniciadaEn, elapsedSeconds}` —
+  `remainingSeconds` and `cronometroAnulado` were removed.
+- **Session complete threshold**: `SESSION_COMPLETE_AT_SECONDS = 300` (5 min)
+  in `@salvador/shared`. Sessions under 5 minutes prompt a soft "¿seguir o ir
+  al informe igual?" before closing. rollupBuilder + export-pilot-data both
+  read this constant for the "sessions ≥ 5 min" counter.
+- **Session closure paths**:
+  - User-initiated: `endSession` callable (Fase 1) sets `state=closed_completed`,
+    `endedReason=user_ended`. Front-end shows PRO-03 closing screen with
+    "Ver mi informe" and "Volver al inicio".
+  - Inactivity: 2 min silent → Martina writes "¿Profe, sigue ahí?" (nudge);
+    2 more min silent → `inactivityScan` closes the session with
+    `state=closed_inactivity`, `endedReason=inactivity`. Any user turn resets
+    `nudgeState=none`. Master flag `config/runtime.inactivityEnabled` (defaults
+    now `true`).
+- The `cronometroAnulado` field on the session doc is preserved (harmless)
+  but never read. `timerOverride` callable was removed.
+- **The timer does NOT pause on user inactivity** — elapsed is continuous
+  real-world time. The inactivity scheduler is what watches idleness.
 
 ### Mode toggle
 
@@ -329,3 +393,81 @@ pool as `maxOutputTokens`. Without pinning to 0, ~34% of Martina's replies were
 truncated to 20–40 visible tokens (thoughts ate the budget). Same pattern as the
 Layer 2 classifier in `safety/llmClassifier.ts`. A conversational turn in first person
 does not need chain-of-thought.
+
+---
+
+## 13. Formative Report — Fase 4 (2026-09-22)
+
+Post-session coaching report written in the voice of the Mentor. Fires when a
+session closes non-`crisis_interrupted` and has ≥3 trainee turns. Every code
+path returns a valid `FormativeReport` envelope; the pipeline NEVER throws to
+the client and NEVER logs transcript, quotes, or report content (debt-0028
+enforces this rule; the pre-existing violation in `callB.ts` is registered).
+
+### Shape
+
+`FormativeReportContentSchema` in `@salvador/shared`. `keyMoments` is a Zod
+discriminated union on `kind`:
+
+- `acierto` carries `whyItWorked` (1-2 sentences with the OASIS principle).
+  No alternative — proposing "how it could have been better" dilutes a success.
+- `oportunidad` carries `tip: { advice, examplePhrase }`. `examplePhrase` is
+  a ready-to-say line for a teacher in a hallway (LATAM-Chile). Labeled
+  "ejemplo sugerido" in the UI with a `TODO_CLINICAL_VALIDATION` note.
+
+Balance rules (Zod `superRefine`): first moment MUST be an acierto,
+`aciertos >= oportunidades`, max 2 oportunidades. When the model breaks
+balance on anti-pattern-heavy sessions, `postProcessReport::rebalanceMoments`
+drops the LAST oportunidad (importance-ordered) until balance holds —
+"option (a)" chosen 2026-09-22.
+
+Extra content fields: `nextChallenge` (persisted for the pre-session
+"Tu desafío de hoy" — UI landed in Sprint 2) and `mentorQuestion` (first
+person, prefills the Mentor chat from the "Hablar con el Mentor" button).
+
+### Callables
+
+- `generateSessionReport` — owner check; transaction on
+  `sessions/{id}.formativeReport.status` (`generating|ready|failed|minimal`)
+  prevents double-generation across tabs. Reclaims `generating` slots >90s
+  old. Failed reports get up to 2 attempts total. Retry-on-`MAX_TOKENS`
+  lowers `thinkingBudget` to 0; retry-on-`schema_invalid` /
+  `moments_unverifiable` re-runs at `temperature: 0`.
+- `saveReflection` — owner check; imports `checkRegexPatterns` from
+  `safety/regexPreempt.js` (safety/ is CONSUMED, never modified). On match:
+  reflection saved AND `safetyMatch` returned so the UI renders the crisis
+  template. Layer 2 is not run (post-session, single-shot, no roleplay).
+
+### generationConfig (feedback model)
+
+| Call | Temperature | maxOutputTokens | thinkingBudget | Timeout |
+|---|---|---|---|---|
+| Feedback | 0.5 (retry: 0) | 4096 | 0 (default) | 30 s |
+
+`thinkingBudget: 0` chosen after A/B on fixtures 01-live 2026-09-21:
+`tb=0` → 6.8s / 4/4 martinaCues verified; `tb=1024` → 12.9s / 3/4. All values
+overridable via `config/runtime.feedbackModel|MaxOutputTokens|ThinkingBudget|
+TimeoutMs`.
+
+### Prompt
+
+`coach_feedback_v1` in `packages/functions/src/prompts/content.ts` + mirror
+in `docs/prompts/coach_feedback_v1.md`. Body in Spanish. Prompt-injection
+defense delimits `[CONVERSATION]` with `<<<CONVERSATION_BEGIN>>>` /
+`<<<CONVERSATION_END>>>` and instructs the model to treat anything between
+as data. Sessions resumed after crisis exclude the trigger turn +
+template response from the sanitized conversation
+(`sanitizeConversation`).
+
+### UI
+
+`SessionReportFormative` on AppShell v1 (`AppHeader` shared with future
+Report/Mentor updates). Layout: synthesis → aciertos → oportunidades →
+matrix trajectory (mobile-first inline SVG, no library) → nextChallenge →
+optional autorreflexión → terminal buttons (retry Martina + "Hablar con
+el Mentor" prefilled). `REPORT_MODE` default is `"formative"`;
+`"minimal"` and `"full"` remain via `VITE_REPORT_MODE`.
+
+Prefetch: `SessionClosingScreen` fires `generateSessionReport`
+fire-and-forget on mount so the report is usually ready when the trainee
+clicks "Ver mi informe".

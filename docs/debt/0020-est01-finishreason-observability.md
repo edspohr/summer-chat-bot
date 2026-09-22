@@ -58,6 +58,15 @@ still slips through post-optimisation.
 - **Debug gap.** Because `finishReason` is plain text, we can't join it to a
   session id to investigate a specific complaint.
 
+- **Also affects Fase 2 eval runner.** The runner (`scripts/eval/run.ts`) sets
+  `finishReason: null` for every Call A response because the SDK does not
+  surface it via `runCallA`'s current return shape (`CallAResult` is
+  `{content, frameBreakSuspected, latencyMs}` — see
+  `packages/functions/src/coach/callA.ts` line 8). `checks.ts` reports every
+  finish_reason check as `skip` with the note _"finishReason not exposed by
+  SDK response in this run"_. Fixing this debt (surface `finishReason`
+  through `CallAResult`) also unblocks the runner's truncation check.
+
 ## How to fix (proposed as a separate prompt)
 
 1. Emit `finishReason` as a **structured** log field so we can filter by it

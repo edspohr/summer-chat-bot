@@ -1,11 +1,11 @@
 import { VertexAI } from "@google-cloud/vertexai";
 import type { CoachCallBInput, EvaluatorRawOutput } from "@salvador/shared";
-import { EvaluatorRawOutputSchema } from "@salvador/shared";
 import { VERTEX_PROJECT, VERTEX_REGION, CALLB_MODEL } from "../config/vertex.js";
 import { loadPrompt } from "../prompts/loader.js";
 import type { TagDefinition } from "@salvador/shared";
 import { MATRIX_EVALUATOR_ADDENDUM } from "./matrixConstants.js";
 import { retryOnQuota } from "./vertexRetry.js";
+import { parseTolerantEvaluatorOutput, formatCallBSummary } from "./callBParse.js";
 
 function formatPendingTags(tags: TagDefinition[]): string {
   if (tags.length === 0) return "(No hay tags pendientes en este turno)";
@@ -66,7 +66,7 @@ export async function runCallB(
 ): Promise<EvaluatorRawOutput> {
   if (input.pendingTags.length === 0 && !includeMatrix) return EMPTY_OUTPUT;
 
-  const template = await loadPrompt("coach_evaluator_v1");
+  const template = await loadPrompt("coach_evaluator_v2");
   const prompt = buildPrompt(input, template, includeMatrix);
 
   const vertexAI = new VertexAI({ project: VERTEX_PROJECT, location: VERTEX_REGION });
@@ -82,7 +82,14 @@ export async function runCallB(
     },
   });
 
-  const result = await retryOnQuota(() => model.generateContent(prompt), { label: "callB" });
+  // Call B was landing in EMPTY_OUTPUT on ~4-16% of turns because a strict
+  // Zod parse failed the whole payload whenever flash-lite omitted a
+  // non-essential field on a single tag (baseline v0 + 30d of dev logs).
+  // Timeout is 30s per attempt — the OAuth path used to hang 5min silently.
+  const result = await retryOnQuota(() => model.generateContent(prompt), {
+    label: "callB",
+    timeoutMs: 30_000,
+  });
   const parts = result.response.candidates?.[0]?.content?.parts ?? [];
   let rawJson = "";
   for (const part of parts) {
@@ -92,18 +99,25 @@ export async function runCallB(
   let parsed: unknown;
   try {
     parsed = JSON.parse(extractJsonObject(rawJson));
-  } catch {
+  } catch (err) {
     console.warn(
-      `[CALLB] JSON parse failed, turn skipped — raw: ${rawJson.slice(0, 500)}`,
+      `[COACH B] JSON parse failed — turn skipped. raw=${rawJson.slice(0, 500)} err=${(err as Error).message}`,
     );
     return EMPTY_OUTPUT;
   }
 
-  const validated = EvaluatorRawOutputSchema.safeParse(parsed);
-  if (!validated.success) {
-    console.error("[CALL B] Schema validation failed:", validated.error.flatten());
-    return EMPTY_OUTPUT;
+  const tolerant = parseTolerantEvaluatorOutput(parsed);
+  console.log(formatCallBSummary(tolerant));
+  if (!tolerant.strictOk) {
+    // Per-issue path list makes it easy to grep "which field is flash-lite
+    // dropping today". Truncated so a bad payload doesn't spam the log.
+    console.warn(
+      "[COACH B] strict validation would have failed — issues:",
+      tolerant.strictIssues.slice(0, 20),
+    );
   }
-
-  return validated.data;
+  if (tolerant.discardedTags.length > 0) {
+    console.warn("[COACH B] discarded tags:", tolerant.discardedTags);
+  }
+  return tolerant.output;
 }

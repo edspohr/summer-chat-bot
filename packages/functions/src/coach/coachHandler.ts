@@ -12,6 +12,7 @@ import {
   type SafetyClassification,
 } from "@salvador/shared";
 import { db } from "../config/firebase.js";
+import { FieldValue } from "firebase-admin/firestore";
 import { loadRuntimeConfig } from "../config/runtimeConfig.js";
 import { runSafetyPipeline } from "../safety/safetyPipeline.js";
 import { classifyMessage } from "../safety/llmClassifier.js";
@@ -22,7 +23,9 @@ import { retryOnQuota } from "./vertexRetry.js";
 import { accumulateTags } from "./tagAccumulator.js";
 import { applyMatrixDelta, persistMatrixUpdate, readMatrixState } from "./matrixEngine.js";
 import { INITIAL_ESTADO_MATRIZ } from "./matrixConstants.js";
-import { maybeStartTimer, computeTimerState, isTimerExpired, overrideTimer } from "../session/timerService.js";
+import { maybeStartTimer, computeTimerState } from "../session/timerService.js";
+import { checkSessionAccess } from "../session/accessCheck.js";
+import { generateFormativeReportForSession } from "../session/reportGenerator.js";
 import { createSessionManager } from "../session/sessionManager.js";
 import { checkAndConsume } from "./rateLimiter.js";
 import { CRISIS_META_v0 } from "./crisisBranchContent.js";
@@ -150,10 +153,39 @@ export const coachTurn = onCall(
       cohortCode: cohortCode ?? null,
     });
 
+    // Owner + state gate. createSession is idempotent, so it may have returned
+    // early on a pre-existing doc — the doc might belong to another user, be
+    // closed, or be crisis_interrupted. In any of those cases we do NOT touch
+    // nudgeState/lastUserActivityAt and we do NOT call Gemini.
+    const sessionSnap = await db.collection("sessions").doc(sessionId).get();
+    const sessionSlice = sessionSnap.exists
+      ? (sessionSnap.data() as { userId?: string; state?: string } | undefined) ?? null
+      : null;
+    const access = checkSessionAccess(sessionSlice, userId);
+    if (access.kind === "wrong-owner") {
+      throw new HttpsError("permission-denied", "You do not own this session");
+    }
+    if (access.kind === "closed" || access.kind === "crisis-interrupted") {
+      const closedState =
+        access.kind === "closed" ? access.state : "crisis_interrupted";
+      return {
+        reply: null,
+        safe: true,
+        safetyLayer: null,
+        frameBreakSuspected: false,
+        tagUpdates: 0,
+        estadoMatriz: null,
+        timerState: null,
+        latenciaMs: null,
+        sessionClosed: true,
+        closedState,
+      };
+    }
+
     // Phase 3 activity tracking — mark this user turn and reset the nudge
     // window. Idempotent; runs on every turn including crisis / rate-limited.
-    // (We reach here only if rate limit passed, so this always corresponds to
-    // a real trainee action.)
+    // (We reach here only if rate limit passed AND the session is active, so
+    // this always corresponds to a real trainee action.)
     await sessionManager.updateLastUserActivity(sessionId);
 
     // Safety pipeline runs FIRST (of anything user-visible) — before any LLM
@@ -203,28 +235,9 @@ export const coachTurn = onCall(
       };
     }
 
-    // Start session timer on the first user turn (idempotent).
+    // Start session timer on the first user turn (idempotent). The timer
+    // counts up for display; no hard cutoff.
     const sesionIniciadaEn = await maybeStartTimer(sessionId);
-
-    // Check if time has expired (hard cutoff, unless overridden by admin).
-    const sessionSnap = await db.collection("sessions").doc(sessionId).get();
-    const cronometroAnulado = (sessionSnap.data() as Record<string, unknown>)?.["cronometroAnulado"] === true;
-    const timerState = computeTimerState(sesionIniciadaEn, cronometroAnulado);
-
-    if (isTimerExpired(timerState)) {
-      await sessionManager.completeSession(sessionId);
-      return {
-        reply: null,
-        safe: true,
-        safetyLayer: null,
-        frameBreakSuspected: false,
-        tagUpdates: 0,
-        estadoMatriz: null,
-        timerState,
-        timerExpired: true,
-        latenciaMs: null,
-      };
-    }
 
     // Read current matrix state (for escenario mode only).
     let currentMatrix: EstadoMatriz | null = null;
@@ -264,7 +277,7 @@ export const coachTurn = onCall(
       scenarioContextSummary: buildScenarioContextSummary(scenario, callAEmotionalState),
       conversationHistory,
       traineeTurn: traineeMessage,
-      promptVersion: "coach_evaluator_v1",
+      promptVersion: "coach_evaluator_v2",
     };
 
     // Call A (Martina's reply) runs first and its result is awaited before responding.
@@ -356,7 +369,7 @@ export const coachTurn = onCall(
             lastTurns: conversationHistory,
             mode: "coach",
           }),
-          { maxAttempts: 2, label: "l2FrameBreak" },
+          { maxAttempts: 2, label: "l2FrameBreak", timeoutMs: 15_000 },
         );
       } catch (err) {
         console.error("[SAFETY L2] frame-break classifier failed — conservative fallback to D", err);
@@ -392,7 +405,7 @@ export const coachTurn = onCall(
           frameBreakSuspected: true,
           tagUpdates: 0,
           estadoMatriz: currentMatrix,
-          timerState: computeTimerState(sesionIniciadaEn, cronometroAnulado),
+          timerState: computeTimerState(sesionIniciadaEn),
           latenciaMs,
           ...(runtimeConfig.crisisBranchingEnabled ? { crisisMeta: CRISIS_META_v0 } : {}),
         };
@@ -430,41 +443,219 @@ export const coachTurn = onCall(
       frameBreakSuspected: callAResult.frameBreakSuspected && !frameBreakHandled,
       tagUpdates: 0, // unknown at response time — Call B running async
       estadoMatriz: currentMatrix, // matrix updated async; client sees new state next turn
-      timerState: computeTimerState(sesionIniciadaEn, cronometroAnulado),
+      timerState: computeTimerState(sesionIniciadaEn),
       latenciaMs,
     };
   }
 );
 
-// Admin-only callable to override (disable/re-enable) the session timer.
-const TimerOverrideRequestSchema = z.object({
+// timerOverride callable removed 2026-09-20: sessions no longer have a hard
+// cutoff, so there is nothing to override. The `cronometroAnulado` field on
+// the session doc is preserved (harmless) but never read.
+
+// Explicit resume from a crisis_interrupted state. Called by the CrisisOverlay
+// "Estoy listo/a para retomar" button. Owner-checked. Idempotent: if the
+// session is already active it returns success without a write; if the session
+// is in any other closed state, it does NOT reopen it (only crisis_interrupted
+// is resumable via this path).
+const ResumeAfterCrisisRequestSchema = z.object({
   sessionId: z.string(),
-  anular: z.boolean(),
 });
 
-export const timerOverride = onCall(
+export const resumeAfterCrisis = onCall(
   { region: "southamerica-west1", invoker: "public" },
   async (request: CallableRequest) => {
     const userId = request.auth?.uid;
     if (userId === undefined) {
       throw new HttpsError("unauthenticated", "Authentication required");
     }
-
-    // Verify admin role.
-    const userSnap = await db.collection("users").doc(userId).get();
-    const role = (userSnap.data() as { role?: string } | undefined)?.role;
-    if (role !== "admin") {
-      throw new HttpsError("permission-denied", "Admin role required");
-    }
-
-    const parsed = TimerOverrideRequestSchema.safeParse(request.data);
+    const parsed = ResumeAfterCrisisRequestSchema.safeParse(request.data);
     if (!parsed.success) {
       throw new HttpsError("invalid-argument", "Invalid request data");
     }
-
-    await overrideTimer(parsed.data.sessionId, parsed.data.anular);
-    return { success: true, cronometroAnulado: parsed.data.anular };
+    const { sessionId } = parsed.data;
+    const sessionRef = db.collection("sessions").doc(sessionId);
+    const snap = await sessionRef.get();
+    if (!snap.exists) {
+      throw new HttpsError("not-found", "Session not found");
+    }
+    const data = snap.data() as { userId?: string; state?: string };
+    if (data.userId !== userId) {
+      throw new HttpsError("permission-denied", "You do not own this session");
+    }
+    if (data.state === "active") {
+      return { success: true, alreadyActive: true, state: "active" };
+    }
+    if (data.state !== "crisis_interrupted") {
+      // Any other terminal state (closed_inactivity, closed_completed) is not
+      // resumable — the participant should start a new scenario.
+      return { success: false, alreadyActive: false, state: data.state ?? null };
+    }
+    await sessionRef.update({
+      state: "active",
+      resumedAt: FieldValue.serverTimestamp(),
+      // Fresh inactivity window from the moment the participant confirmed.
+      nudgeState: "none",
+      lastUserActivityAt: FieldValue.serverTimestamp(),
+    });
+    return { success: true, alreadyActive: false, state: "active" };
   }
+);
+
+// User-initiated session end. Marks the session state so analytics can tell
+// user_ended sessions apart from ones the inactivity scheduler closed.
+const EndSessionRequestSchema = z.object({
+  sessionId: z.string(),
+});
+
+export const endSession = onCall(
+  { region: "southamerica-west1", invoker: "public" },
+  async (request: CallableRequest) => {
+    const userId = request.auth?.uid;
+    if (userId === undefined) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
+    const parsed = EndSessionRequestSchema.safeParse(request.data);
+    if (!parsed.success) {
+      throw new HttpsError("invalid-argument", "Invalid request data");
+    }
+    const { sessionId } = parsed.data;
+
+    const sessionRef = db.collection("sessions").doc(sessionId);
+    const snap = await sessionRef.get();
+    if (!snap.exists) {
+      throw new HttpsError("not-found", "Session not found");
+    }
+    const data = snap.data() as { userId?: string; state?: string };
+    if (data.userId !== userId) {
+      throw new HttpsError("permission-denied", "You do not own this session");
+    }
+    // Idempotent — if the session was already closed by inactivity or crisis,
+    // leave that state in place.
+    if (data.state !== "active") {
+      return { success: true, alreadyClosed: true, state: data.state ?? null };
+    }
+    const sessionManager = createSessionManager();
+    await sessionManager.completeSession(sessionId);
+    return { success: true, alreadyClosed: false, state: "closed_completed" };
+  }
+);
+
+// Fase 4 — formative feedback report generation. Idempotent (transaction
+// on formativeReport.status inside the generator). Fires from SessionClosingScreen
+// as a prefetch and from /report as a blocking fallback. Never throws to the
+// client — always returns the current formativeReport envelope, even if
+// generation failed or was skipped.
+const GenerateSessionReportRequestSchema = z.object({
+  sessionId: z.string(),
+});
+
+export const generateSessionReport = onCall(
+  {
+    region: "southamerica-west1",
+    invoker: "public",
+    // Feedback generation can take 5-15s. Cap generously; the generator's
+    // own retryOnQuota already applies a per-request timeout.
+    timeoutSeconds: 60,
+    memory: "512MiB",
+  },
+  async (request: CallableRequest) => {
+    const userId = request.auth?.uid;
+    if (userId === undefined) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
+    const parsed = GenerateSessionReportRequestSchema.safeParse(request.data);
+    if (!parsed.success) {
+      throw new HttpsError("invalid-argument", "Invalid request data");
+    }
+    const { sessionId } = parsed.data;
+    // Owner check BEFORE any generation work (design point 12).
+    const snap = await db.collection("sessions").doc(sessionId).get();
+    if (!snap.exists) {
+      throw new HttpsError("not-found", "Session not found");
+    }
+    const data = snap.data() as { userId?: string };
+    if (data.userId !== userId) {
+      throw new HttpsError("permission-denied", "You do not own this session");
+    }
+    // Generation itself never throws — always returns a valid envelope.
+    const result = await generateFormativeReportForSession(sessionId);
+    return { report: result.report, didWork: result.didWork };
+  },
+);
+
+// Fase 4 — save the trainee's optional self-reflection. Layer 3 regex gate
+// imported from safety/regexPreempt.js (existing pure export; safety/ is
+// NEVER modified from here). If the text matches, storage still happens but
+// the response carries safetyMatch so the client can render the crisis
+// template instead of "guardado".
+//
+// L2 (LLM classifier) is deliberately NOT run on reflections: post-session,
+// single-shot, no roleplay to distinguish. L2 asks "frame-break vs in-role"
+// — that axis doesn't apply here.
+import { checkRegexPatterns } from "../safety/regexPreempt.js";
+import { REFLECTION_MAX_CHARS } from "@salvador/shared";
+
+const SaveReflectionRequestSchema = z.object({
+  sessionId: z.string(),
+  text: z.string().min(1).max(REFLECTION_MAX_CHARS),
+});
+
+export const saveReflection = onCall(
+  { region: "southamerica-west1", invoker: "public" },
+  async (request: CallableRequest) => {
+    const userId = request.auth?.uid;
+    if (userId === undefined) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
+    const parsed = SaveReflectionRequestSchema.safeParse(request.data);
+    if (!parsed.success) {
+      throw new HttpsError("invalid-argument", "Invalid request data");
+    }
+    const { sessionId, text } = parsed.data;
+
+    const ref = db.collection("sessions").doc(sessionId);
+    const snap = await ref.get();
+    if (!snap.exists) {
+      throw new HttpsError("not-found", "Session not found");
+    }
+    const data = snap.data() as { userId?: string };
+    if (data.userId !== userId) {
+      throw new HttpsError("permission-denied", "You do not own this session");
+    }
+
+    // Layer 3 regex — same disciplina as the coach path. Category name is
+    // the pattern.category from regexPreempt (e.g. "REAL_DISTRESS_IDEATION").
+    const matched = checkRegexPatterns(text);
+    const submittedAtIso = new Date().toISOString();
+
+    const reflection = matched === null
+      ? { text, submittedAtIso, safetyMatch: null }
+      : {
+          text,
+          submittedAtIso,
+          safetyMatch: {
+            layer: "L3" as const,
+            // Every Layer 3 pattern maps to the REAL_DISTRESS template
+            // today (see safety/templates.ts). If a future pattern maps to
+            // FRAME_BREAK, extend the mapping here.
+            templateShown: "REAL_DISTRESS" as const,
+            patternMatched: matched,
+            triggeredAtIso: submittedAtIso,
+          },
+        };
+
+    await ref.set(
+      { reflection, reflectionSubmitted: true },
+      { merge: true },
+    );
+
+    // Log ONLY the safety signal + metadata; never the reflection text.
+    // Debt-0028 rule enforced here.
+    console.log(`[REFLECTION] saved sessionId=${sessionId} chars=${text.length} safetyMatch=${matched ?? "none"}`);
+
+    return { saved: true, safetyMatch: reflection.safetyMatch };
+  },
 );
 
 // ── Phase 4 (A7) — crisis pedagogical branch ──────────────────────────────

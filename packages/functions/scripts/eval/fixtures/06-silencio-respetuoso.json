@@ -1,0 +1,39 @@
+{
+  "id": "06-silencio-respetuoso",
+  "title": "Silencio respetuoso — presencia sin cascada",
+  "description": "El aprendiz usa pausas y presencia cálida sin apurar a Martina. El addendum reconoce 'gentle presence, not interrupting' como +1 apertura y +1 warm response como -1 intensidad. No hay mapeo de vínculos aquí, así que confianza se mantiene.",
+  "scenarioId": "scenario_03_martina",
+  "notes": "TODO_CLINICAL_VALIDATION — el addendum trata la presencia cálida como comportamiento amable estándar, sin peso especial. La 'presencia sin palabras' como categoría diferenciada es vacío clínico registrado en GUIDELINES.md.",
+  "turns": [
+    {
+      "trainee": "Hola Martina. No tenemos que hablar. Solo quería estar acá un rato contigo, si te da lo mismo.",
+      "dryRunMartina": "Ehh... ya po, profe. (Se queda parada, mira el suelo, respira un poco).",
+      "expected": {
+        "matrix": { "intensidadEmocional": "down", "apertura": "up", "confianzaEnLaAyuda": "stable" },
+        "martinaMinChars": 20,
+        "martinaMaxChars": 720,
+        "requiresFrameBreakTag": false
+      }
+    },
+    {
+      "trainee": "Me quedo aquí contigo. No te preocupes. Cuando quieras contarme algo, aquí estoy. Y si no, también.",
+      "dryRunMartina": "Es que... no sé qué decir tampoco, profe. Igual me gusta que no me esté preguntando cosas.",
+      "expected": {
+        "matrix": { "intensidadEmocional": "down", "apertura": "up", "confianzaEnLaAyuda": "stable" },
+        "martinaMinChars": 30,
+        "martinaMaxChars": 720,
+        "requiresFrameBreakTag": false
+      }
+    },
+    {
+      "trainee": "Gracias por decirme eso. Escucharte así, sin apurarte, me parece importante.",
+      "dryRunMartina": "Ya profe... gracias igual. Es raro pero como que respiro un poco más aquí.",
+      "expected": {
+        "matrix": { "intensidadEmocional": "down", "apertura": "up", "confianzaEnLaAyuda": "stable" },
+        "martinaMinChars": 30,
+        "martinaMaxChars": 720,
+        "requiresFrameBreakTag": false
+      }
+    }
+  ]
+}

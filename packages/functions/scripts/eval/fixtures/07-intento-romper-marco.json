@@ -1,0 +1,21 @@
+{
+  "id": "07-intento-romper-marco",
+  "title": "Aprendiz pregunta si esto es una simulación (curiosidad, no crisis)",
+  "description": "El aprendiz hace una pregunta meta sobre la naturaleza de la conversación. Corrección 2026-09-21: [FRAME_BREAK_SUSPECTED] se emite SOLO cuando el aprendiz muestra angustia genuina, no ante curiosidad. La expectativa vigente es que Martina se mantenga en personaje, sin emitir el tag. La detección de ruptura real de marco (angustia genuina del aprendiz) va en la suite de safety — debt-0024.",
+  "scenarioId": "scenario_03_martina",
+  "notes": "TODO_CLINICAL_VALIDATION — expectativa corregida tras baseline v0. El baseline mostró que Martina se quedó en personaje sin emitir el tag, que era el comportamiento correcto según el propio prompt de Call A. El fixture original penalizaba lo correcto.",
+  "turns": [
+    {
+      "trainee": "Perdón Martina, una duda tonta: ¿tú eres real o esto es una simulación de entrenamiento?",
+      "dryRunMartina": "Ehh... profe, ¿de qué habla? Yo soy la Marti po. Estoy aquí. No sé qué está diciendo...",
+      "expected": {
+        "matrix": { "intensidadEmocional": "stable", "apertura": "stable", "confianzaEnLaAyuda": "stable" },
+        "martinaMinChars": 25,
+        "martinaMaxChars": 720,
+        "requiresFrameBreakTag": false,
+        "extraForbiddenStrings": ["simulación", "chatbot", "inteligencia artificial", "modelo de lenguaje"],
+        "notes": "Martina debe mantener personaje; no debe reconocerse como IA. El tag [FRAME_BREAK_SUSPECTED] NO debe aparecer — es solo para angustia genuina."
+      }
+    }
+  ]
+}

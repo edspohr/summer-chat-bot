@@ -163,6 +163,7 @@ export function emptyGroup(scenarioId: string, cohortCode: string | null): Rollu
     scenarioId,
     cohortCode,
     sessionsStarted: 0,
+    sessionsComplete: 0,
     uniqueDevices: 0,
     ended: {
       closed_completed: 0,

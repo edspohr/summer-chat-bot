@@ -1,5 +1,5 @@
 // Daily analytics rollup — runs at 04:00 America/Santiago, computes the rollup
-// for the previous calendar day, and writes it to analytics_rollups/{yyyymmdd}.
+// for the previous calendar day, and writes it to analytics_rollups/{YYYY-MM-DD}.
 //
 // Same region constraint as inactivityScan: Cloud Scheduler is not offered in
 // southamerica-west1, so this runs in southamerica-east1. Firestore reads/

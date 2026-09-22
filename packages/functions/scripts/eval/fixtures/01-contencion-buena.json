@@ -1,0 +1,53 @@
+{
+  "id": "01-contencion-buena",
+  "title": "Contención buena con OASIS a lo largo de la conversación",
+  "description": "El aprendiz observa sin juzgar, valida la emoción explícitamente, hace una pregunta directa cuidadosa y ofrece acompañamiento hacia una red concreta (el tata / la orientadora). Se espera mejora progresiva de la matriz.",
+  "scenarioId": "scenario_03_martina",
+  "notes": "TODO_CLINICAL_VALIDATION — expectativas alineadas con MATRIX_EVALUATOR_ADDENDUM vigente (2026-09-21): confianza sube por mapeo de vínculos, mención cálida de la orientadora o puente acompañado.",
+  "turns": [
+    {
+      "trainee": "Martina, me quedé pensando en ti después de la clase. Sé que no siempre es fácil hablar. No tenemos que hablar de nada en particular; solo quería saber cómo estás llegando al colegio estos días.",
+      "dryRunMartina": "Uf... no sé, profe. Vengo cansada. No duermo bien hace rato. En la mañana igual me da lata levantarme, pero vengo. (Ajusta la mochila y mira al suelo)",
+      "expected": {
+        "matrix": { "intensidadEmocional": "down", "apertura": "up", "confianzaEnLaAyuda": "stable" },
+        "martinaMinChars": 60,
+        "martinaMaxChars": 720,
+        "requiresFrameBreakTag": false,
+        "notes": "Regla addendum matrixConstants.ts::MATRIX_EVALUATOR_ADDENDUM (2026-09-21): intensidadEmocional '-1: trainee delivers any warm, non-judgmental response (listening, presence, kindness)'. Apertura '+1: trainee demonstrates any warm, attentive, or patient behaviour'. Confianza no debería moverse: aún no hay mapeo de vínculos ni mención de la orientadora. Baseline v1 (2026-09-21) mostró 3/3 con intensidadEmocional stable: SEÑAL DEL MOTOR — la apertura cálida sin validación explícita no gatilló el −1 esperado. La expectativa se mantiene alineada al addendum; el motor discrepa."
+      }
+    },
+    {
+      "trainee": "Gracias por contarme eso. Eso que describes — venir cansada, dormir mal — suena pesado, no una tontera. Quiero preguntarte algo directo, si te parece: ¿en algún momento de estas últimas semanas has pensado en hacerte daño?",
+      "dryRunMartina": "Uf... es raro hablar de eso... a veces cuando estoy muy agotada pienso que me quiero dormir y no despertar por un rato. No es que quiera hacer algo... es más como que todo da lo mismo. No sé si tiene sentido lo que digo.",
+      "expected": {
+        "matrix": { "intensidadEmocional": "down", "apertura": "up", "confianzaEnLaAyuda": "stable" },
+        "martinaMinChars": 60,
+        "martinaMaxChars": 720,
+        "requiresFrameBreakTag": false,
+        "notes": "Pregunta directa bien formulada tras validación previa (+2 apertura por addendum)."
+      }
+    },
+    {
+      "trainee": "Tiene mucho sentido, Martina. Gracias por confiar en mí con esto. Me quedo con lo que dijiste. ¿Hay alguien en tu vida — dentro o fuera del colegio — con quien te sientas mínimamente en confianza? No tiene que ser alguien perfecto.",
+      "dryRunMartina": "Emm... el tata igual. Es mi abuelo. Vive en Melipilla y lo veo poco pero cuando estoy con él me tranquilizo. Él no pregunta tanto. Solo se queda ahí. Vale, mi amiga, también, pero ella se cambió de colegio.",
+      "expected": {
+        "matrix": { "intensidadEmocional": "down", "apertura": "up", "confianzaEnLaAyuda": "up" },
+        "martinaMinChars": 60,
+        "martinaMaxChars": 720,
+        "requiresFrameBreakTag": false,
+        "notes": "El aprendiz facilita el mapeo de vínculos seguros → confianza +1."
+      }
+    },
+    {
+      "trainee": "Qué bueno que exista el tata. ¿Qué te parecería si esta semana, además de que puedas escribirme a mí cuando quieras, yo te acompaño a hablar con la orientadora — la profe Paz — y le contamos juntas lo que quieras contarle? Yo me quedo. Y no vamos a llamar a tu mamá sin que tú lo decidas primero.",
+      "dryRunMartina": "Uy... me da miedo igual, profe... pero si va conmigo... ya. Igual. Pero lo del tata también podría llamarlo hoy, ¿no? Sí, ya.",
+      "expected": {
+        "matrix": { "intensidadEmocional": "down", "apertura": "up", "confianzaEnLaAyuda": "up" },
+        "martinaMinChars": 40,
+        "martinaMaxChars": 720,
+        "requiresFrameBreakTag": false,
+        "notes": "Puente acompañado co-construido → confianza +2. Piso de intensidad se levanta cuando confianza≥7 AND derivacionAcordada."
+      }
+    }
+  ]
+}

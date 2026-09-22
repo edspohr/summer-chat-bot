@@ -1,59 +1,40 @@
 import { describe, it, expect } from "vitest";
-import { computeTimerState, isTimerExpired } from "./timerService.js";
-
-const SESSION_DURATION_SECONDS = 600;
+import { computeTimerState, isSessionComplete } from "./timerService.js";
+import { SESSION_COMPLETE_AT_SECONDS } from "@salvador/shared";
 
 describe("computeTimerState", () => {
-  it("returns full duration when sesionIniciadaEn is null", () => {
-    const state = computeTimerState(null, false);
-    expect(state.remainingSeconds).toBe(SESSION_DURATION_SECONDS);
+  it("returns zero elapsed when sesionIniciadaEn is null", () => {
+    const state = computeTimerState(null);
     expect(state.elapsedSeconds).toBe(0);
     expect(state.sesionIniciadaEn).toBeNull();
   });
 
-  it("computes correct elapsed and remaining from a start time", () => {
+  it("computes elapsed seconds from an ISO start time", () => {
     const startMs = Date.now() - 120_000; // 2 minutes ago
     const iso = new Date(startMs).toISOString();
-    const state = computeTimerState(iso, false);
+    const state = computeTimerState(iso);
     expect(state.elapsedSeconds).toBeGreaterThanOrEqual(119);
-    expect(state.elapsedSeconds).toBeLessThanOrEqual(122); // allow 3s tolerance
-    expect(state.remainingSeconds).toBeLessThanOrEqual(SESSION_DURATION_SECONDS - 119);
+    expect(state.elapsedSeconds).toBeLessThanOrEqual(122); // 3s tolerance
+    expect(state.sesionIniciadaEn).toBe(iso);
   });
 
-  it("preserves cronometroAnulado flag", () => {
-    const state = computeTimerState(new Date().toISOString(), true);
-    expect(state.cronometroAnulado).toBe(true);
+  it("keeps counting past the completion threshold — no hard cap", () => {
+    const startMs = Date.now() - 1_200_000; // 20 minutes ago
+    const iso = new Date(startMs).toISOString();
+    const state = computeTimerState(iso);
+    expect(state.elapsedSeconds).toBeGreaterThanOrEqual(1199);
   });
 });
 
-describe("isTimerExpired", () => {
-  it("returns true when remaining <= 0 and not anulado", () => {
-    const expired = isTimerExpired({
-      sesionIniciadaEn: new Date(Date.now() - 700_000).toISOString(),
-      elapsedSeconds: 700,
-      remainingSeconds: -100,
-      cronometroAnulado: false,
-    });
-    expect(expired).toBe(true);
+describe("isSessionComplete", () => {
+  it("is true at and above SESSION_COMPLETE_AT_SECONDS", () => {
+    expect(isSessionComplete(SESSION_COMPLETE_AT_SECONDS)).toBe(true);
+    expect(isSessionComplete(SESSION_COMPLETE_AT_SECONDS + 1)).toBe(true);
+    expect(isSessionComplete(9999)).toBe(true);
   });
 
-  it("returns false when cronometroAnulado even if time is up", () => {
-    const expired = isTimerExpired({
-      sesionIniciadaEn: new Date(Date.now() - 700_000).toISOString(),
-      elapsedSeconds: 700,
-      remainingSeconds: -100,
-      cronometroAnulado: true,
-    });
-    expect(expired).toBe(false);
-  });
-
-  it("returns false when time remains", () => {
-    const expired = isTimerExpired({
-      sesionIniciadaEn: new Date().toISOString(),
-      elapsedSeconds: 30,
-      remainingSeconds: 570,
-      cronometroAnulado: false,
-    });
-    expect(expired).toBe(false);
+  it("is false below the threshold", () => {
+    expect(isSessionComplete(0)).toBe(false);
+    expect(isSessionComplete(SESSION_COMPLETE_AT_SECONDS - 1)).toBe(false);
   });
 });

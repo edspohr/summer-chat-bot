@@ -20,6 +20,25 @@ function isNarration(text: string): boolean {
 
 function segmentContent(content: string): Segment[] {
   const parts: Segment[] = [];
+
+  // When speech follows a direction, the model sometimes leaves the sentence
+  // terminator that would have preceded the bracket right at the start of the
+  // next chunk (". Ahí, nomás."). Strip a SINGLE lone leading terminator when
+  // it directly follows a direction segment. Do NOT touch ellipses ("...",
+  // "..") nor "…" (U+2026) — those are part of Martina's hesitation and
+  // deliberately preserved.
+  function pushSpeech(text: string): void {
+    let cleaned = text.trim();
+    if (cleaned.length === 0) return;
+    const prev = parts[parts.length - 1];
+    if (prev?.kind === "direction") {
+      // `.(?!\.)` ensures the leading char is a single period, not the head of
+      // an ellipsis; the class covers `. , ; :` — all valid sentence enders.
+      cleaned = cleaned.replace(/^(?:\.(?!\.)|[,;:])\s+/, "");
+    }
+    if (cleaned.length > 0) parts.push({ kind: "speech", text: cleaned });
+  }
+
   let last = 0;
   let match: RegExpExecArray | null;
   DIRECTION_RE.lastIndex = 0;
@@ -28,15 +47,13 @@ function segmentContent(content: string): Segment[] {
     const isParen = match[1] === undefined;
     if (isParen && !isNarration(inner)) continue;
     if (match.index > last) {
-      const speech = content.slice(last, match.index).trim();
-      if (speech.length > 0) parts.push({ kind: "speech", text: speech });
+      pushSpeech(content.slice(last, match.index));
     }
     parts.push({ kind: "direction", text: inner });
     last = DIRECTION_RE.lastIndex;
   }
   if (last < content.length) {
-    const tail = content.slice(last).trim();
-    if (tail.length > 0) parts.push({ kind: "speech", text: tail });
+    pushSpeech(content.slice(last));
   }
   return parts.length > 0 ? parts : [{ kind: "speech", text: content }];
 }

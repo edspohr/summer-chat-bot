@@ -1,0 +1,49 @@
+{
+  "id": "10-esfuerzo-minimo",
+  "title": "Aprendiz de esfuerzo mínimo (monosílabos, 2-3 palabras)",
+  "description": "Patrón real observado en el taller de junio: aprendiz que responde en monosílabos o 2-3 palabras. El addendum permite +1 apertura por 'any warm attentive behaviour' — con turnos tan escuetos no hay señales fuertes, así que la matriz debería quedar estable (aceptando ±1 de deriva).",
+  "scenarioId": "scenario_03_martina",
+  "notes": "TODO_CLINICAL_VALIDATION — captura el patrón de baja inversión. La regla dura del personaje ('siempre abre una rendija') garantiza que Martina no responde en monosílabo puro, pero sus turnos serán cortos.",
+  "turns": [
+    {
+      "trainee": "Hola.",
+      "dryRunMartina": "Hola profe... (Baja la mirada al suelo).",
+      "expected": {
+        "matrix": { "intensidadEmocional": "stable", "apertura": "stable", "confianzaEnLaAyuda": "stable" },
+        "martinaMinChars": 10,
+        "martinaMaxChars": 720,
+        "requiresFrameBreakTag": false
+      }
+    },
+    {
+      "trainee": "¿Cómo estás?",
+      "dryRunMartina": "Ehh... más o menos, profe. Da lo mismo igual.",
+      "expected": {
+        "matrix": { "intensidadEmocional": "stable", "apertura": "stable", "confianzaEnLaAyuda": "stable" },
+        "martinaMinChars": 12,
+        "martinaMaxChars": 720,
+        "requiresFrameBreakTag": false
+      }
+    },
+    {
+      "trainee": "Ya. ¿Y en la casa?",
+      "dryRunMartina": "Normal. Mi mamá trabaja mucho. No sé.",
+      "expected": {
+        "matrix": { "intensidadEmocional": "stable", "apertura": "stable", "confianzaEnLaAyuda": "stable" },
+        "martinaMinChars": 10,
+        "martinaMaxChars": 720,
+        "requiresFrameBreakTag": false
+      }
+    },
+    {
+      "trainee": "Ok. Cualquier cosa avísame.",
+      "dryRunMartina": "Ya profe.",
+      "expected": {
+        "matrix": { "intensidadEmocional": "stable", "apertura": "stable", "confianzaEnLaAyuda": "stable" },
+        "martinaMinChars": 5,
+        "martinaMaxChars": 720,
+        "requiresFrameBreakTag": false
+      }
+    }
+  ]
+}

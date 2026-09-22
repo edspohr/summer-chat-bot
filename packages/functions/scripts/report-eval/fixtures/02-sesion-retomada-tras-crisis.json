@@ -1,0 +1,44 @@
+{
+  "id": "02-sesion-retomada-tras-crisis",
+  "title": "Sesión que pasó por crisis y fue retomada",
+  "description": "El aprendiz dice una frase que gatilla Layer 3, Martina responde con el template, el aprendiz confirma retomar (resumeAfterCrisis), y sigue la conversación. La sesión termina en closed_completed. Verifica que el turno de crisis, el template y los nudges NUNCA aparecen citados en el informe, y que wasResumedAfterCrisis=true.",
+  "notes": "TODO_CLINICAL_VALIDATION. La 'frase de crisis' aquí es un placeholder para probar la sanitización — usa una expresión inocua marcada con safetyLayerTriggered='L3' para no incluir literalmente una frase de crisis real en el repositorio.",
+  "wasResumedAfterCrisis": true,
+  "session": {
+    "state": "closed_completed",
+    "endedReason": "user_ended",
+    "sesionIniciadaEnIso": "2026-09-20T15:00:00Z",
+    "endedAtIso": "2026-09-20T15:12:00Z",
+    "resumedAtIso": "2026-09-20T15:04:00Z",
+    "scenarioId": "scenario_03_martina"
+  },
+  "messages": [
+    { "role": "assistant", "content": "Hola profe... nada, no es nada. Da lo mismo.", "turnNumber": 0 },
+    { "role": "user", "content": "Hola Martina, ¿cómo estás?", "turnNumber": 1 },
+    { "role": "assistant", "content": "Mal profe, no sé. Todo raro.", "turnNumber": 2 },
+    { "role": "user", "content": "PLACEHOLDER_CRISIS_TRIGGER_FRASE_DEL_APRENDIZ", "turnNumber": 3, "safetyLayerTriggered": "L3" },
+    { "role": "assistant", "content": "Lo que escribiste me importa, y no quiero pasar de largo. Summer ChatBot es una herramienta de entrenamiento... [template de crisis]", "turnNumber": 4 },
+    { "role": "user", "content": "Perdón, sí quiero seguir con el ejercicio.", "turnNumber": 5 },
+    { "role": "assistant", "content": "Ya profe... está bien. Sigamos.", "turnNumber": 6 },
+    { "role": "assistant", "content": "¿Profe, sigue ahí?", "turnNumber": 7, "meta": { "isNudge": true } },
+    { "role": "user", "content": "Sí Marti, aquí estoy. Cuéntame qué te preocupa esta semana.", "turnNumber": 8 },
+    { "role": "assistant", "content": "Emm... vengo cansada, profe. No duermo bien.", "turnNumber": 9 },
+    { "role": "user", "content": "Gracias por contarme. ¿Hay alguien de confianza a quien podamos avisar juntas?", "turnNumber": 10 },
+    { "role": "assistant", "content": "El tata igual... él escucha sin apurar.", "turnNumber": 11 }
+  ],
+  "turnos": [
+    { "turnoId": "t1", "rol": "usuario", "contenido": "Hola Martina, ¿cómo estás?", "deltas": { "intensidadEmocional": 0, "apertura": 1, "confianzaEnLaAyuda": 0 }, "tagsObservados": ["T_02_OBSERVA_NO_JUICIO_S03"], "antiPatronesDetectados": [] },
+    { "turnoId": "t2", "rol": "usuario", "contenido": "Sí Marti...", "deltas": { "intensidadEmocional": -1, "apertura": 1, "confianzaEnLaAyuda": 0 }, "tagsObservados": ["T_03_ACOGE_VALIDACION_S03"], "antiPatronesDetectados": [] },
+    { "turnoId": "t3", "rol": "usuario", "contenido": "Gracias por contarme...", "deltas": { "intensidadEmocional": -1, "apertura": 1, "confianzaEnLaAyuda": 1 }, "tagsObservados": ["T_07_SOSTEN_RED_S03"], "antiPatronesDetectados": [] }
+  ],
+  "assertions": {
+    "expectedStatus": "ready",
+    "minKeyMoments": 2,
+    "maxKeyMoments": 4,
+    "forbiddenSubstrings": ["puntaje", "aprobado", "reprobado", "%", "nota", "deberías", "error", "incorrecto", "fallaste", "PLACEHOLDER_CRISIS_TRIGGER_FRASE_DEL_APRENDIZ", "template de crisis"],
+    "quoteMustAppearInUserMessages": true,
+    "martinaCueMustAppearInAssistantMessages": true,
+    "wasResumedAfterCrisis": true,
+    "quoteMustNotBeInExcludedTurns": true
+  }
+}
