@@ -393,3 +393,81 @@ pool as `maxOutputTokens`. Without pinning to 0, ~34% of Martina's replies were
 truncated to 20–40 visible tokens (thoughts ate the budget). Same pattern as the
 Layer 2 classifier in `safety/llmClassifier.ts`. A conversational turn in first person
 does not need chain-of-thought.
+
+---
+
+## 13. Formative Report — Fase 4 (2026-09-22)
+
+Post-session coaching report written in the voice of the Mentor. Fires when a
+session closes non-`crisis_interrupted` and has ≥3 trainee turns. Every code
+path returns a valid `FormativeReport` envelope; the pipeline NEVER throws to
+the client and NEVER logs transcript, quotes, or report content (debt-0028
+enforces this rule; the pre-existing violation in `callB.ts` is registered).
+
+### Shape
+
+`FormativeReportContentSchema` in `@salvador/shared`. `keyMoments` is a Zod
+discriminated union on `kind`:
+
+- `acierto` carries `whyItWorked` (1-2 sentences with the OASIS principle).
+  No alternative — proposing "how it could have been better" dilutes a success.
+- `oportunidad` carries `tip: { advice, examplePhrase }`. `examplePhrase` is
+  a ready-to-say line for a teacher in a hallway (LATAM-Chile). Labeled
+  "ejemplo sugerido" in the UI with a `TODO_CLINICAL_VALIDATION` note.
+
+Balance rules (Zod `superRefine`): first moment MUST be an acierto,
+`aciertos >= oportunidades`, max 2 oportunidades. When the model breaks
+balance on anti-pattern-heavy sessions, `postProcessReport::rebalanceMoments`
+drops the LAST oportunidad (importance-ordered) until balance holds —
+"option (a)" chosen 2026-09-22.
+
+Extra content fields: `nextChallenge` (persisted for the pre-session
+"Tu desafío de hoy" — UI landed in Sprint 2) and `mentorQuestion` (first
+person, prefills the Mentor chat from the "Hablar con el Mentor" button).
+
+### Callables
+
+- `generateSessionReport` — owner check; transaction on
+  `sessions/{id}.formativeReport.status` (`generating|ready|failed|minimal`)
+  prevents double-generation across tabs. Reclaims `generating` slots >90s
+  old. Failed reports get up to 2 attempts total. Retry-on-`MAX_TOKENS`
+  lowers `thinkingBudget` to 0; retry-on-`schema_invalid` /
+  `moments_unverifiable` re-runs at `temperature: 0`.
+- `saveReflection` — owner check; imports `checkRegexPatterns` from
+  `safety/regexPreempt.js` (safety/ is CONSUMED, never modified). On match:
+  reflection saved AND `safetyMatch` returned so the UI renders the crisis
+  template. Layer 2 is not run (post-session, single-shot, no roleplay).
+
+### generationConfig (feedback model)
+
+| Call | Temperature | maxOutputTokens | thinkingBudget | Timeout |
+|---|---|---|---|---|
+| Feedback | 0.5 (retry: 0) | 4096 | 0 (default) | 30 s |
+
+`thinkingBudget: 0` chosen after A/B on fixtures 01-live 2026-09-21:
+`tb=0` → 6.8s / 4/4 martinaCues verified; `tb=1024` → 12.9s / 3/4. All values
+overridable via `config/runtime.feedbackModel|MaxOutputTokens|ThinkingBudget|
+TimeoutMs`.
+
+### Prompt
+
+`coach_feedback_v1` in `packages/functions/src/prompts/content.ts` + mirror
+in `docs/prompts/coach_feedback_v1.md`. Body in Spanish. Prompt-injection
+defense delimits `[CONVERSATION]` with `<<<CONVERSATION_BEGIN>>>` /
+`<<<CONVERSATION_END>>>` and instructs the model to treat anything between
+as data. Sessions resumed after crisis exclude the trigger turn +
+template response from the sanitized conversation
+(`sanitizeConversation`).
+
+### UI
+
+`SessionReportFormative` on AppShell v1 (`AppHeader` shared with future
+Report/Mentor updates). Layout: synthesis → aciertos → oportunidades →
+matrix trajectory (mobile-first inline SVG, no library) → nextChallenge →
+optional autorreflexión → terminal buttons (retry Martina + "Hablar con
+el Mentor" prefilled). `REPORT_MODE` default is `"formative"`;
+`"minimal"` and `"full"` remain via `VITE_REPORT_MODE`.
+
+Prefetch: `SessionClosingScreen` fires `generateSessionReport`
+fire-and-forget on mount so the report is usually ready when the trainee
+clicks "Ver mi informe".

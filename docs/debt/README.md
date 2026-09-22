@@ -1,6 +1,6 @@
 # Technical Debt Register
 
-_Last updated: 2026-09-18 (0013 resolved — dev deploy + smoke test done; 0023, 0024, 0025 added)_
+_Last updated: 2026-09-22 (formative sprint 1 close — 0004/0013/0026 resolved, 0017 partially; 0023/0024/0025/0027/0028 registered)_
 
 | ID | Title | Severity | Status |
 |---|---|---|---|

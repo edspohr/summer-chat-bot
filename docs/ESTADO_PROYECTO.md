@@ -1,10 +1,10 @@
 # Estado del Proyecto — Salvador
 ## Fundación Summer · Primeros Auxilios Emocionales · Prevención del Suicidio
 
-**Última actualización**: 2026-07-10 (sprint plan Martina — Fases 1-4 + 6 desplegadas)
+**Última actualización**: 2026-09-22 (formative sprint 1 — Fases 0-4 pasos 1-3 mergeadas a main)
 **Responsable técnico**: Edmundo Spohr · Growth Buddies SpA
 **Repositorio**: monorepo pnpm workspace en `/SummerBot`
-**Rama activa**: `rescue/martina-formative-20260617`
+**Rama activa**: `main` (rama de trabajo `feat/formative-sprint1` mergeada)
 
 ---
 
@@ -21,7 +21,34 @@ Existen dos modos operativos a nivel de sesión: `escenario` (default, con perso
 
 ---
 
-## Estado actual — Resumen ejecutivo (2026-07-10)
+## Estado actual — Sprint formativo 1 (2026-09-22)
+
+**Formative sprint 1** cerró el 2026-09-22 con `feat/formative-sprint1` mergeado a `main`.
+El sprint entregó: runtime Node 22 + firebase-functions@7 + firebase-admin@14 (Fase 0);
+reglas de sesión sin corte duro con inactividad 2+2 min + pantalla de cierre PRO-03
+(Fase 1); runner de evaluación determinista con 10 fixtures y baseline v1 (Fase 2);
+informe formativo tipo coaching (aciertos + oportunidades + consejos anclados en
+MUSTs + nextChallenge + mentorQuestion) con generador tolerante, prefetch desde
+la pantalla de cierre, gate Layer 3 en la autorreflexión, y la UI completa sobre
+AppShell v1 (Fase 4 pasos 1-3).
+
+**Callables nuevos en producción-dev** (post-deploy 2026-09-22):
+`generateSessionReport` (owner-checked, transacción idempotente sobre
+`sessions/{id}.formativeReport.status`, retry-on-schema_invalid) y
+`saveReflection` (owner check + Layer 3 gate importando `checkRegexPatterns`
+desde `safety/regexPreempt.js` sin modificar safety/).
+
+**REPORT_MODE** default flipped a `"formative"`; `"minimal"` y `"full"` siguen
+alcanzables vía `VITE_REPORT_MODE`.
+
+Diferido a Sprint 2: "Tu desafío de hoy" en ScenarioSelect (necesita campo
+top-level `sessions/{id}.nextChallenge` + hook + UI), migración a
+`@google/genai` (debt-0027, kill date 2026-06-24 vencida), fixture harness
+para Layer 2 (debt-0024).
+
+---
+
+## Estado — Resumen ejecutivo (histórico 2026-07-10)
 
 **El sistema fue usado en un taller formativo el 2026-06-17** con docentes, en el escenario Martina. Post-taller quedaron abiertos varios items críticos documentados en debt-0018. La deuda 0003 (validación clínica del Layer 3 de seguridad) sigue siendo el bloqueante formal para producción.
 
