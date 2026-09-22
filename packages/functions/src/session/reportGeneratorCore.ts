@@ -327,7 +327,50 @@ export interface PostProcessResult {
   content: FormativeReportContent | null;
   droppedMoments: number;
   droppedMartinaCues: number;
+  droppedByRebalance: number;
   reason?: "moments_unverifiable" | "schema_invalid";
+}
+
+// Balance-restore transformation. Option (a) from the 2026-09-22 review:
+// when the model returns more oportunidades than aciertos on
+// anti-pattern-heavy conversations, drop the LEAST-important oportunidad
+// (the last one in the array — the model orders by importance) until the
+// balance rule holds. Also caps at max 2 oportunidades. Runs BEFORE Zod
+// so a legitimate model output isn't rejected as schema_invalid.
+export function rebalanceMoments(rawMoments: unknown[]): { moments: unknown[]; dropped: number } {
+  const isMoment = (m: unknown): m is { kind: string } =>
+    typeof m === "object" && m !== null && typeof (m as { kind?: unknown }).kind === "string";
+  // Step 1: cap oportunidades at 2 (drop trailing).
+  const step1: unknown[] = [];
+  let oportunidadCount = 0;
+  let dropped = 0;
+  for (const m of rawMoments) {
+    if (isMoment(m) && m.kind === "oportunidad") {
+      if (oportunidadCount >= 2) {
+        dropped++;
+        continue;
+      }
+      oportunidadCount++;
+    }
+    step1.push(m);
+  }
+  // Step 2: while oportunidades > aciertos AND total > 2, drop the last
+  // oportunidad. Never drop below 2 total (schema min).
+  const kept = [...step1];
+  while (kept.length > 2) {
+    const aciertos = kept.filter((m) => isMoment(m) && m.kind === "acierto").length;
+    const oportunidades = kept.filter((m) => isMoment(m) && m.kind === "oportunidad").length;
+    if (oportunidades <= aciertos) break;
+    for (let i = kept.length - 1; i >= 0; i--) {
+      const m = kept[i];
+      if (isMoment(m) && m.kind === "oportunidad") {
+        kept.splice(i, 1);
+        dropped++;
+        break;
+      }
+    }
+  }
+  return { moments: kept, dropped };
 }
 
 /**
@@ -340,13 +383,27 @@ export function postProcessReport(
   raw: unknown,
   messages: MessageSlice[],
 ): PostProcessResult {
-  const parsed = FormativeReportContentSchema.safeParse(raw);
+  // Balance-restore rebalance runs BEFORE Zod so we don't reject reports
+  // whose only sin is having one too many oportunidades. See rebalanceMoments.
+  let toValidate: unknown = raw;
+  let droppedByRebalance = 0;
+  if (
+    typeof raw === "object" &&
+    raw !== null &&
+    Array.isArray((raw as { keyMoments?: unknown }).keyMoments)
+  ) {
+    const r = rebalanceMoments((raw as { keyMoments: unknown[] }).keyMoments);
+    droppedByRebalance = r.dropped;
+    toValidate = { ...(raw as Record<string, unknown>), keyMoments: r.moments };
+  }
+  const parsed = FormativeReportContentSchema.safeParse(toValidate);
   if (!parsed.success) {
     return {
       ok: false,
       content: null,
       droppedMoments: 0,
       droppedMartinaCues: 0,
+      droppedByRebalance,
       reason: "schema_invalid",
     };
   }
@@ -367,6 +424,7 @@ export function postProcessReport(
       content: null,
       droppedMoments: dropped,
       droppedMartinaCues: droppedCues,
+      droppedByRebalance,
       reason: "moments_unverifiable",
     };
   }
@@ -375,6 +433,7 @@ export function postProcessReport(
     content: { ...parsed.data, keyMoments: survivors },
     droppedMoments: dropped,
     droppedMartinaCues: droppedCues,
+    droppedByRebalance,
   };
 }
 

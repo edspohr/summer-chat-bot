@@ -12,6 +12,7 @@ import {
   verifyQuote,
   verifyMoment,
   postProcessReport,
+  rebalanceMoments,
   shouldWaitForLastTurno,
 } from "./reportGeneratorCore.js";
 
@@ -393,8 +394,10 @@ describe("postProcessReport", () => {
     expect(r.reason).toBe("schema_invalid");
   });
 
-  it("marks schema_invalid when there are more oportunidades than aciertos", () => {
-    // Add a 4th user message so 3 quotes can survive verification.
+  it("recovers 1 acierto + 2 oportunidades via rebalance (drops last oportunidad)", () => {
+    // Under the option-(a) balance transformation (rebalanceMoments), this
+    // input recovers to 1 acierto + 1 oportunidad instead of being rejected
+    // as schema_invalid.
     const extraMessages = [
       ...messages,
       u("con quién sientes confianza igual", 7),
@@ -406,7 +409,7 @@ describe("postProcessReport", () => {
           quote: "cuéntame cómo estás hoy",
           oasisPhase: "OBSERVA",
           whatHappenedWithMartina: "algo con largo suficiente",
-          whyItWorked: "principio simple",
+          whyItWorked: "principio simple con largo",
         },
         {
           kind: "oportunidad",
@@ -425,8 +428,56 @@ describe("postProcessReport", () => {
       ],
     });
     const r = postProcessReport(raw, extraMessages);
-    expect(r.ok).toBe(false);
-    expect(r.reason).toBe("schema_invalid");
+    expect(r.ok).toBe(true);
+    expect(r.droppedByRebalance).toBe(1);
+    expect(r.content!.keyMoments.length).toBe(2);
+    expect(r.content!.keyMoments[0]!.kind).toBe("acierto");
+    expect(r.content!.keyMoments[1]!.kind).toBe("oportunidad");
+  });
+});
+
+describe("rebalanceMoments (pure)", () => {
+  const acierto = (n: number) => ({ kind: "acierto", tag: `a${n}` });
+  const oportunidad = (n: number) => ({ kind: "oportunidad", tag: `o${n}` });
+
+  it("leaves a balanced input untouched", () => {
+    const input = [acierto(1), oportunidad(1), acierto(2)];
+    const r = rebalanceMoments(input);
+    expect(r.moments).toEqual(input);
+    expect(r.dropped).toBe(0);
+  });
+
+  it("caps oportunidades at 2 and rebalances so aciertos >= oportunidades", () => {
+    // 1 acierto + 3 oportunidades: step 1 drops the 3rd oportunidad, step 2
+    // drops the 2nd because 2 > 1 aciertos and total > 2.
+    const input = [acierto(1), oportunidad(1), oportunidad(2), oportunidad(3)];
+    const r = rebalanceMoments(input);
+    expect(r.moments).toEqual([acierto(1), oportunidad(1)]);
+    expect(r.dropped).toBe(2);
+  });
+
+  it("drops the LAST oportunidad, preserving importance order", () => {
+    const input = [acierto(1), oportunidad(1), acierto(2), oportunidad(2), oportunidad(3)];
+    const r = rebalanceMoments(input);
+    // Step 1: cap at 2 → drops o3 → [a1, o1, a2, o2]. Balanced (2:2).
+    expect(r.moments).toEqual([acierto(1), oportunidad(1), acierto(2), oportunidad(2)]);
+    expect(r.dropped).toBe(1);
+  });
+
+  it("never drops below 2 total (schema min)", () => {
+    // 0 aciertos + 2 oportunidades — can't be fixed; leave as-is, Zod
+    // rejects downstream.
+    const input = [oportunidad(1), oportunidad(2)];
+    const r = rebalanceMoments(input);
+    expect(r.moments.length).toBe(2);
+    expect(r.dropped).toBe(0);
+  });
+
+  it("keeps a legal all-aciertos input untouched", () => {
+    const input = [acierto(1), acierto(2), acierto(3), acierto(4)];
+    const r = rebalanceMoments(input);
+    expect(r.moments).toEqual(input);
+    expect(r.dropped).toBe(0);
   });
 });
 
