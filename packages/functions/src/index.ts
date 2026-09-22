@@ -5,6 +5,7 @@ export {
   endSession,
   resumeAfterCrisis,
   generateSessionReport,
+  saveReflection,
 } from "./coach/coachHandler.js";
 export { inactivityScan } from "./session/inactivityScheduler.js";
 export { analyticsRollupDaily } from "./analytics/rollupScheduler.js";

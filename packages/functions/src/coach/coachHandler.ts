@@ -584,6 +584,80 @@ export const generateSessionReport = onCall(
   },
 );
 
+// Fase 4 — save the trainee's optional self-reflection. Layer 3 regex gate
+// imported from safety/regexPreempt.js (existing pure export; safety/ is
+// NEVER modified from here). If the text matches, storage still happens but
+// the response carries safetyMatch so the client can render the crisis
+// template instead of "guardado".
+//
+// L2 (LLM classifier) is deliberately NOT run on reflections: post-session,
+// single-shot, no roleplay to distinguish. L2 asks "frame-break vs in-role"
+// — that axis doesn't apply here.
+import { checkRegexPatterns } from "../safety/regexPreempt.js";
+import { REFLECTION_MAX_CHARS } from "@salvador/shared";
+
+const SaveReflectionRequestSchema = z.object({
+  sessionId: z.string(),
+  text: z.string().min(1).max(REFLECTION_MAX_CHARS),
+});
+
+export const saveReflection = onCall(
+  { region: "southamerica-west1", invoker: "public" },
+  async (request: CallableRequest) => {
+    const userId = request.auth?.uid;
+    if (userId === undefined) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
+    const parsed = SaveReflectionRequestSchema.safeParse(request.data);
+    if (!parsed.success) {
+      throw new HttpsError("invalid-argument", "Invalid request data");
+    }
+    const { sessionId, text } = parsed.data;
+
+    const ref = db.collection("sessions").doc(sessionId);
+    const snap = await ref.get();
+    if (!snap.exists) {
+      throw new HttpsError("not-found", "Session not found");
+    }
+    const data = snap.data() as { userId?: string };
+    if (data.userId !== userId) {
+      throw new HttpsError("permission-denied", "You do not own this session");
+    }
+
+    // Layer 3 regex — same disciplina as the coach path. Category name is
+    // the pattern.category from regexPreempt (e.g. "REAL_DISTRESS_IDEATION").
+    const matched = checkRegexPatterns(text);
+    const submittedAtIso = new Date().toISOString();
+
+    const reflection = matched === null
+      ? { text, submittedAtIso, safetyMatch: null }
+      : {
+          text,
+          submittedAtIso,
+          safetyMatch: {
+            layer: "L3" as const,
+            // Every Layer 3 pattern maps to the REAL_DISTRESS template
+            // today (see safety/templates.ts). If a future pattern maps to
+            // FRAME_BREAK, extend the mapping here.
+            templateShown: "REAL_DISTRESS" as const,
+            patternMatched: matched,
+            triggeredAtIso: submittedAtIso,
+          },
+        };
+
+    await ref.set(
+      { reflection, reflectionSubmitted: true },
+      { merge: true },
+    );
+
+    // Log ONLY the safety signal + metadata; never the reflection text.
+    // Debt-0028 rule enforced here.
+    console.log(`[REFLECTION] saved sessionId=${sessionId} chars=${text.length} safetyMatch=${matched ?? "none"}`);
+
+    return { saved: true, safetyMatch: reflection.safetyMatch };
+  },
+);
+
 // ── Phase 4 (A7) — crisis pedagogical branch ──────────────────────────────
 // After the safety pipeline flags AND crisisBranchingEnabled is on, the client
 // shows the user two branch buttons. The button click hits this callable.

@@ -357,6 +357,7 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
           elapsedSeconds={frozenElapsedSeconds ?? elapsedSeconds}
           onViewReport={goToReport}
           onGoHome={goHome}
+          sessionId={sessionId}
         />
       )}
 

@@ -99,12 +99,35 @@ export interface ResumeAfterCrisisResponse {
   state: string | null;
 }
 
+// Fase 4 — formative report.
+export interface GenerateSessionReportRequest {
+  sessionId: string;
+}
+export interface GenerateSessionReportResponse {
+  report: import("@salvador/shared").FormativeReport;
+  didWork: boolean;
+}
+
+// Fase 4 — trainee self-reflection with Layer 3 gate.
+export interface SaveReflectionRequest {
+  sessionId: string;
+  text: string;
+}
+export interface SaveReflectionResponse {
+  saved: boolean;
+  safetyMatch: import("@salvador/shared").ReflectionSafetyMatch | null;
+}
+
 export const callMentorChat = getCallable<MentorChatRequest, MentorChatResponse>("mentorChat");
 export const callCoachTurn = getCallable<CoachTurnRequest, CoachTurnResponse>("coachTurn");
 export const callCrisisBranch = getCallable<CrisisBranchRequest, CrisisBranchResponse>("crisisBranch");
 export const callEndSession = getCallable<EndSessionRequest, EndSessionResponse>("endSession");
 export const callResumeAfterCrisis =
   getCallable<ResumeAfterCrisisRequest, ResumeAfterCrisisResponse>("resumeAfterCrisis");
+export const callGenerateSessionReport =
+  getCallable<GenerateSessionReportRequest, GenerateSessionReportResponse>("generateSessionReport");
+export const callSaveReflection =
+  getCallable<SaveReflectionRequest, SaveReflectionResponse>("saveReflection");
 
 // ── Latency Lab (dev-only) ─────────────────────────────────────────────────
 

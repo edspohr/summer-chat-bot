@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from "react";
 import { useAuth } from "../hooks/useAuth.js";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useChat } from "../hooks/useChat.js";
 import { ChatBubble } from "../components/ChatBubble.js";
 import { CrisisOverlay } from "../components/CrisisOverlay.js";
@@ -12,6 +12,7 @@ const SESSION_ID = crypto.randomUUID();
 export default function MentorChat() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { messages, send, isLoading, crisisTemplate, clearCrisis } = useChat(SESSION_ID);
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -19,6 +20,18 @@ export default function MentorChat() {
   useEffect(() => {
     if (!loading && !user) navigate("/login");
   }, [user, loading, navigate]);
+
+  // ?prompt=<text> prefills the composer once (used by the "Hablar con el
+  // Mentor" button on the formative report). Cleared from the URL after so
+  // a refresh doesn't re-fill.
+  useEffect(() => {
+    const prompt = searchParams.get("prompt");
+    if (prompt === null || prompt === "") return;
+    setInput(prompt);
+    const next = new URLSearchParams(searchParams);
+    next.delete("prompt");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });

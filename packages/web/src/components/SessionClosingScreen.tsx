@@ -1,10 +1,18 @@
+import { useEffect, useRef } from "react";
 import { SESSION_COMPLETE_AT_SECONDS } from "@salvador/shared";
+import { callGenerateSessionReport } from "../lib/functions.js";
 
 interface SessionClosingScreenProps {
   reason: "inactivity" | "user_ended";
   elapsedSeconds: number;
   onViewReport: () => void;
   onGoHome: () => void;
+  /**
+   * Session id — used to prefetch the formative report while the trainee
+   * reads the closing copy. Fire-and-forget: the /report page reads the
+   * same field and doesn't care whether the prefetch already ran.
+   */
+  sessionId?: string;
 }
 
 function formatDuration(seconds: number): string {
@@ -18,8 +26,23 @@ export function SessionClosingScreen({
   elapsedSeconds,
   onViewReport,
   onGoHome,
+  sessionId,
 }: SessionClosingScreenProps) {
   const completeEnough = elapsedSeconds >= SESSION_COMPLETE_AT_SECONDS;
+
+  // Prefetch the formative report so it's usually ready when the trainee
+  // clicks "Ver mi informe". Fires once. Never blocks the UI: errors are
+  // logged, and /report has its own fallback that runs on mount.
+  const prefetchStarted = useRef(false);
+  useEffect(() => {
+    if (sessionId === undefined || sessionId === "") return;
+    if (prefetchStarted.current) return;
+    prefetchStarted.current = true;
+    callGenerateSessionReport({ sessionId }).catch((err: unknown) => {
+      // eslint-disable-next-line no-console
+      console.warn("[REPORT_PREFETCH] failed — /report will retry on mount", err);
+    });
+  }, [sessionId]);
 
   const title =
     reason === "inactivity"
