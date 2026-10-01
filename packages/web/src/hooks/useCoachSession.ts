@@ -47,6 +47,7 @@ export function useCoachSession(
   completedTagIds: string[],
   modo: SimulationMode = "escenario",
   cohortCode: string | null = null,
+  source: "8dot8" | null = null,
 ): {
   messages: LocalMessage[];
   send: (content: string) => Promise<boolean>;
@@ -212,6 +213,7 @@ export function useCoachSession(
         pendingTagIds: currentPendingTagIds,
         modo,
         cohortCode,
+        source,
       });
 
       const data = result.data;

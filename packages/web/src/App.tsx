@@ -11,6 +11,7 @@ import SessionReport from "./pages/SessionReport.js";
 import LabChat from "./pages/LabChat.js";
 import MartinaDemo from "./pages/MartinaDemo.js";
 import AdminAnalytics from "./pages/AdminAnalytics.js";
+import EventLive8dot8 from "./pages/EventLive8dot8.js";
 
 export default function App() {
   return (
@@ -33,6 +34,8 @@ export default function App() {
         <Route path="/lab" element={<LabChat />} />
         {/* /admin/analytics — aggregate dashboard; open (anon sign-in). Data is aggregated/non-personal by design. */}
         <Route path="/admin/analytics" element={<AdminAnalytics />} />
+        {/* /8dot8 — public booth TV dashboard (8.8 Unreal). Aggregates only. */}
+        <Route path="/8dot8" element={<EventLive8dot8 />} />
       </Routes>
     </BrowserRouter>
   );

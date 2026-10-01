@@ -44,6 +44,8 @@ export interface CoachTurnRequest {
   // Optional cohort/workshop code captured from the entry URL (?c=...).
   // Persisted to the session doc on first turn — non-personal grouping key.
   cohortCode?: string | null;
+  // Optional entry channel (?src=8dot8). First turn only.
+  source?: "8dot8" | null;
 }
 
 export interface CoachTurnResponse {

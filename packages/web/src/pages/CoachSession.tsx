@@ -15,6 +15,7 @@ import { Composer } from "../components/Composer.js";
 import { SessionClosingScreen } from "../components/SessionClosingScreen.js";
 import { useFramingAck } from "../hooks/useFramingAck.js";
 import { readCohort } from "../lib/cohort.js";
+import { readSource } from "../lib/source.js";
 import { callEndSession } from "../lib/functions.js";
 import type { Scenario } from "@salvador/shared";
 import { SESSION_COMPLETE_AT_SECONDS } from "@salvador/shared";
@@ -194,6 +195,7 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
   // Cohort code was captured on the entry route (MartinaDemo) into sessionStorage.
   // Read it once — it's stable for the lifetime of the session.
   const cohortCodeRef = useRef<string | null>(readCohort());
+  const sourceRef = useRef(readSource());
 
   const {
     messages,
@@ -209,7 +211,7 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
     crisisMeta,
     crisisBranchOutcome,
     chooseCrisisBranch,
-  } = useCoachSession(sessionId, scenario, completedTagIds, "escenario", cohortCodeRef.current);
+  } = useCoachSession(sessionId, scenario, completedTagIds, "escenario", cohortCodeRef.current, sourceRef.current);
 
   const [input, setInput] = useState("");
   const [warningMessage, setWarningMessage] = useState<string | null>(null);

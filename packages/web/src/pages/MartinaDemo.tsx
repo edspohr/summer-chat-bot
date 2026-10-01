@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth.js";
 import { signInAnon } from "../lib/auth.js";
 import { captureCohortFromUrl } from "../lib/cohort.js";
+import { captureSourceFromUrl } from "../lib/source.js";
 import { AppIcon } from "../components/AppIcon.js";
 
 const MARTINA_SCENARIO_ID = "scenario_03_martina";
@@ -17,6 +18,7 @@ export default function MartinaDemo() {
   // on first render so it survives the auth redirect below.
   useEffect(() => {
     captureCohortFromUrl(searchParams);
+    captureSourceFromUrl(searchParams);
   }, [searchParams]);
 
   useEffect(() => {
