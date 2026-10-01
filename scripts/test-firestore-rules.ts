@@ -16,7 +16,7 @@ import {
   assertFails,
   assertSucceeds,
 } from "@firebase/rules-unit-testing";
-import { doc, getDoc, collection, getDocs } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, getDocs } from "firebase/firestore";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -58,6 +58,9 @@ await env.withSecurityRulesDisabled(async (ctx) => {
     sessionId: "test-session",
   });
   await db.doc("scenarios/camila").set({ name: "Camila", slug: "camila", active: true });
+  await db.doc("event_live/8dot8").set({ sessions: 3 });
+  await db.doc("event_live/other").set({ sessions: 1 });
+  await db.doc("sessions/s-1").set({ userId: "participant-uid", source: "8dot8" });
 });
 
 console.log("\nlab_sessions — access control");
@@ -129,6 +132,28 @@ await test("participant: scenarios write is still denied", async () => {
 await test("unauthenticated: scenarios read is denied", async () => {
   const unauth = env.unauthenticatedContext();
   await assertFails(getDoc(doc(unauth.firestore(), "scenarios/camila")));
+});
+
+console.log("\nevent_live — public aggregate only");
+
+await test("unauthenticated: can read event_live/8dot8", async () => {
+  const unauth = env.unauthenticatedContext();
+  await assertSucceeds(getDoc(doc(unauth.firestore(), "event_live/8dot8")));
+});
+
+await test("unauthenticated: cannot read event_live/other", async () => {
+  const unauth = env.unauthenticatedContext();
+  await assertFails(getDoc(doc(unauth.firestore(), "event_live/other")));
+});
+
+await test("unauthenticated: cannot write event_live/8dot8", async () => {
+  const unauth = env.unauthenticatedContext();
+  await assertFails(setDoc(doc(unauth.firestore(), "event_live/8dot8"), { sessions: 999 }));
+});
+
+await test("unauthenticated: cannot read sessions/{id}", async () => {
+  const unauth = env.unauthenticatedContext();
+  await assertFails(getDoc(doc(unauth.firestore(), "sessions/s-1")));
 });
 
 await env.cleanup();

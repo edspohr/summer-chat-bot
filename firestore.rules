@@ -72,6 +72,14 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // 8.8 Unreal booth dashboard (/8dot8) — the ONLY publicly readable doc.
+    // Contains aggregates only (counters, averages, bare timestamps); written
+    // by functions/src/analytics/eventLive.ts. Any other event_live id stays denied.
+    match /event_live/{eventId} {
+      allow read: if eventId == "8dot8";
+      allow write: if false;
+    }
+
     // Lab sessions (dev-only tool): admin users only.
     // Read is needed by the web client for session export (LabChat.tsx).
     // Writes go through Cloud Functions admin SDK (bypasses rules),

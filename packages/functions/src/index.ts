@@ -9,6 +9,7 @@ export {
 } from "./coach/coachHandler.js";
 export { inactivityScan } from "./session/inactivityScheduler.js";
 export { analyticsRollupDaily } from "./analytics/rollupScheduler.js";
+export { eventLiveOnSessionWrite, eventLiveTick } from "./analytics/eventLive.js";
 
 // Dev-only — deploys to summer-chatbot-dev only. Never expose to production.
 import { onCall } from "firebase-functions/v2/https";
