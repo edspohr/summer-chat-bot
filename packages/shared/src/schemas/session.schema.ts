@@ -79,6 +79,9 @@ export const SessionSchema = z.object({
   nudgeState: NudgeStateSchema.nullable().default(null),
   // Branch chosen by trainee after safety pipeline flagged (Phase 4).
   crisisBranch: CrisisBranchSchema.nullable().default(null),
+  // Entry channel captured from ?src=... (only "8dot8" today). Absent on
+  // every other session.
+  source: z.literal("8dot8").optional(),
 });
 
 export type SessionState = z.infer<typeof SessionStateSchema>;

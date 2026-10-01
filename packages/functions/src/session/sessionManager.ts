@@ -11,6 +11,7 @@ export interface SessionManagerService {
     mode: "mentor" | "coach";
     promptVersion: string;
     cohortCode?: string | null;
+    source?: "8dot8" | null;
   }): Promise<void>;
 
   getSession(sessionId: string): Promise<Session | null>;
@@ -48,7 +49,7 @@ export function createSessionManager(): SessionManagerService {
   const sessions = db.collection("sessions");
 
   return {
-    async createSession({ sessionId, userId, scenarioId, mode, promptVersion, cohortCode }) {
+    async createSession({ sessionId, userId, scenarioId, mode, promptVersion, cohortCode, source }) {
       const docRef = sessions.doc(sessionId);
       const snap = await docRef.get();
       if (snap.exists) return;
@@ -68,6 +69,8 @@ export function createSessionManager(): SessionManagerService {
         lastUserActivityAt: null,
         nudgeState: "none",
         crisisBranch: null,
+        // Only written when present so non-event sessions stay unchanged.
+        ...(source != null && { source }),
       });
     },
 
