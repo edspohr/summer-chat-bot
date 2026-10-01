@@ -111,10 +111,10 @@ function useIdleCursor(): boolean {
 function Panel({ title, children, className = "" }: { title: string; children: ReactNode; className?: string }) {
   return (
     <section
-      className={`flex flex-col rounded-[24px] border px-8 py-6 ${className}`}
+      className={`flex flex-col rounded-[24px] border px-8 py-5 ${className}`}
       style={{ background: C.panel, borderColor: C.border }}
     >
-      <h2 className={`${FONT_TITLE} text-[30px] leading-none`}>{title}</h2>
+      <h2 className={`${FONT_TITLE} text-[28px] leading-none`}>{title}</h2>
       {children}
     </section>
   );
@@ -128,11 +128,11 @@ function Kpi({ label, value, accent, mono }: { label: string; value: number; acc
     >
       <div className="flex items-center gap-3">
         <span className="h-3 w-3 rounded-full" style={{ background: accent }} />
-        <span className="text-[19px] font-semibold" style={{ color: C.muted }}>
+        <span className="text-[17px] font-semibold leading-tight" style={{ color: C.muted }}>
           {label}
         </span>
       </div>
-      <div className={`${FONT_TITLE} text-[84px] leading-none`} style={{ color: accent }}>
+      <div className={`${FONT_TITLE} text-[76px] leading-none`} style={{ color: accent }}>
         <AnimatedNumber value={value} />
       </div>
       <div className={`${FONT_MONO} text-[13px]`} style={{ color: C.muted }}>
@@ -192,6 +192,7 @@ export default function EventLive8dot8() {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
+    hourCycle: "h23",
   });
 
   return (
@@ -252,7 +253,7 @@ export default function EventLive8dot8() {
             </header>
 
             {/* KPIs */}
-            <div className="flex h-[200px] gap-6">
+            <div className="flex h-[180px] gap-6">
               <Kpi label="Sesiones en el evento" value={data.sessions} accent={C.blue} mono="> sesiones --src=8dot8" />
               <Kpi label="Conversando ahora" value={activeNow} accent={C.teal} mono="> activos --ultimos=3min" />
               <Kpi
@@ -300,14 +301,14 @@ export default function EventLive8dot8() {
                   inicio de Martina <span style={{ color: C.text }}>vs</span> promedio al cerrar
                   {data.matrixFinalAvg !== null && ` · ${data.matrixFinalAvg.n} conversaciones`}
                 </p>
-                <div className="mt-4 flex flex-1 flex-col justify-around">
+                <div className="mt-3 flex flex-1 flex-col justify-between">
                   {DRIVERS.map((d) => {
                     const initial = MARTINA_INITIAL_MATRIX[d.key];
                     const final = data.matrixFinalAvg?.[d.key] ?? null;
                     return (
-                      <div key={d.key} className="flex flex-col gap-2">
+                      <div key={d.key} className="flex flex-col gap-[6px]">
                         <div className="flex items-baseline justify-between">
-                          <span className="text-[21px] font-semibold">{d.label}</span>
+                          <span className="text-[19px] font-semibold">{d.label}</span>
                           <span className={`${FONT_MONO} text-[18px]`} style={{ color: C.muted }}>
                             {initial} →{" "}
                             <span className="font-bold" style={{ color: d.color }}>
@@ -318,13 +319,13 @@ export default function EventLive8dot8() {
                         <div className="h-[6px] overflow-hidden rounded-full" style={{ background: C.border }}>
                           <div className="h-full rounded-full" style={{ width: `${initial * 10}%`, background: C.muted }} />
                         </div>
-                        <div className="h-4 overflow-hidden rounded-full" style={{ background: C.border }}>
+                        <div className="h-3 overflow-hidden rounded-full" style={{ background: C.border }}>
                           <div
                             className="h-full rounded-full transition-[width] duration-1000 ease-out"
                             style={{ width: `${(final ?? 0) * 10}%`, background: d.color }}
                           />
                         </div>
-                        <span className="text-[16px]" style={{ color: C.muted }}>
+                        <span className="text-[14px] leading-tight" style={{ color: C.muted }}>
                           {d.hint}
                         </span>
                       </div>
@@ -337,18 +338,18 @@ export default function EventLive8dot8() {
         </div>
 
         {/* Bottom band */}
-        <div className="flex h-[300px] shrink-0 items-center gap-12 px-12" style={{ background: "#FFFBF5", color: C.bg }}>
-          <QrCode url={QR_URL} size={256} />
-          <div className="relative rounded-[28px] border-4 px-9 py-6" style={{ borderColor: C.bg, background: "#FFFFFF" }}>
-            <p className="text-[30px] font-bold leading-snug">“Profe, ¿tiene un minuto? Necesito hablar con usted...”</p>
+        <div className="flex h-[280px] shrink-0 items-center gap-10 px-12" style={{ background: "#FFFBF5", color: C.bg }}>
+          <QrCode url={QR_URL} size={240} />
+          <div className="relative w-[500px] shrink-0 rounded-[28px] border-4 px-8 py-5" style={{ borderColor: C.bg, background: "#FFFFFF" }}>
+            <p className="text-[28px] font-bold leading-snug">“Profe, ¿tiene un minuto? Necesito hablar con usted...”</p>
             <span
               className="absolute -left-[22px] top-1/2 h-0 w-0 -translate-y-1/2 border-y-[16px] border-r-[20px] border-y-transparent"
               style={{ borderRightColor: C.bg }}
             />
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-4">
-            <p className={`${FONT_TITLE} text-[64px] leading-none`}>Escanea y conversa con Martina</p>
-            <p className="text-[22px] font-medium" style={{ color: "#3A3F5C" }}>
+            <p className={`${FONT_TITLE} text-[58px] leading-none`}>Escanea y conversa con Martina</p>
+            <p className="text-[20px] font-medium" style={{ color: "#3A3F5C" }}>
               Un motor conversacional con IA que entrena a docentes en contención emocional · #yoelijosalvar
             </p>
           </div>
