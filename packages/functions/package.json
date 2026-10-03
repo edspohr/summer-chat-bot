@@ -13,7 +13,9 @@
     "seed:no-embeddings": "tsx scripts/seed-knowledge-base.ts --skip-embeddings",
     "backfill:analytics": "tsx scripts/backfill-analytics-rollups.ts",
     "export:pilot": "tsx scripts/export-pilot-data.ts",
-    "export:daily": "tsx scripts/export-daily-metrics.ts"
+    "export:daily": "tsx scripts/export-daily-metrics.ts",
+    "warm:up": "tsx scripts/warm-instances.ts up",
+    "warm:down": "tsx scripts/warm-instances.ts down"
   },
   "dependencies": {
     "@google-cloud/vertexai": "^1.0.0",

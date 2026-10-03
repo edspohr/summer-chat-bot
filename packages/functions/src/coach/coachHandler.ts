@@ -28,6 +28,7 @@ import { checkSessionAccess } from "../session/accessCheck.js";
 import { generateFormativeReportForSession } from "../session/reportGenerator.js";
 import { createSessionManager } from "../session/sessionManager.js";
 import { checkAndConsume } from "./rateLimiter.js";
+import { CHAT_TURN_MIN_INSTANCES } from "../ops/warmConfig.js";
 import { CRISIS_META_v0 } from "./crisisBranchContent.js";
 import { randomUUID } from "node:crypto";
 
@@ -93,9 +94,9 @@ export const coachTurn = onCall(
     invoker: "public",
     timeoutSeconds: 180,
     memory: "512MiB",
-    // Pinned via console on 2026-08-11 at 1; bumped to 3 on 2026-09-04 for GORE
-    // event (75 concurrent). Safe to lower back to 1 once the event is over.
-    minInstances: 3,
+    // Cold baseline (param = 0). Warmed during workshop hours by the
+    // service-level schedule in ops/warmScheduler.ts.
+    minInstances: CHAT_TURN_MIN_INSTANCES,
   },
   async (request: CallableRequest) => {
     const userId = request.auth?.uid;

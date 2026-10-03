@@ -471,3 +471,39 @@ el Mentor" prefilled). `REPORT_MODE` default is `"formative"`;
 Prefetch: `SessionClosingScreen` fires `generateSessionReport`
 fire-and-forget on mount so the report is usually ready when the trainee
 clicks "Ver mi informe".
+
+---
+
+## 14. Warm instances schedule (2026-10-03, dev only)
+
+Code baseline is always cold: `coachTurn` and `mentorChat` deploy with
+`minInstances: CHAT_TURN_MIN_INSTANCES` (param, value 0 in
+`packages/functions/.env.summer-chatbot-dev`). **Do not hard-code
+`minInstances` on any function again.**
+
+Two scheduled functions (`packages/functions/src/ops/warmScheduler.ts`,
+region `southamerica-east1`, timezone `America/Santiago`) set the Cloud Run
+**service-level** min instances on those two services:
+
+| Job | Cron | Action |
+|---|---|---|
+| `warmInstancesUp` | `0 9 * * 1-5` | min → 1, skipped on Chilean public holidays |
+| `warmInstancesDown` | `0 18 * * 1-5` | min → 0, always |
+
+- Single config file: `packages/functions/src/ops/warmConfig.ts` (target
+  services, schedule, `CHILE_HOLIDAYS`). The holiday list covers Oct 2026 –
+  Dec 2027 and **must be refreshed every December**.
+- Service-level min (annotation `run.googleapis.com/minScale` on the Service)
+  is used because it changes without creating a revision; `firebase deploy`
+  only writes the revision-level value.
+- Manual override (events outside the window, or after a deploy during
+  business hours):
+
+```bash
+pnpm --filter @salvador/functions warm:up     # service-level min → 1 now
+pnpm --filter @salvador/functions warm:down   # service-level min → 0 now
+```
+
+- The jobs no-op on any project other than `summer-chatbot-dev`.
+- Full runbook (verification, Billing SKUs, holiday table, rollback):
+  `docs/runbooks/warm-instances.md` (Spanish).

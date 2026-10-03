@@ -8,6 +8,7 @@ import { getTemplate } from "../safety/templates.js";
 import { retrieveTopK } from "./ragRetriever.js";
 import { loadPrompt } from "../prompts/loader.js";
 import { createSessionManager } from "../session/sessionManager.js";
+import { CHAT_TURN_MIN_INSTANCES } from "../ops/warmConfig.js";
 import type { KnowledgeChunk } from "@salvador/shared";
 
 const MentorChatRequestSchema = z.object({
@@ -53,9 +54,9 @@ export const mentorChat = onCall(
   {
     region: "southamerica-west1",
     invoker: "public",
-    // Kept warm for GORE event 2026-09-04 to avoid first-hit cold starts.
-    // Safe to remove once event traffic subsides.
-    minInstances: 1,
+    // Cold baseline (param = 0). Warmed during workshop hours by the
+    // service-level schedule in ops/warmScheduler.ts.
+    minInstances: CHAT_TURN_MIN_INSTANCES,
   },
   async (request: CallableRequest) => {
     const userId = request.auth?.uid;
