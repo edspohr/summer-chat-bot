@@ -11,3 +11,4 @@ export * from "./types/index.js";
 export * from "./oasis/phase.js";
 export * from "./oasis/initialMatrix.js";
 export * from "./product.js";
+export * from "./event/event8dot8.js";

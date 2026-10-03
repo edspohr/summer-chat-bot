@@ -50,6 +50,8 @@ const CoachTurnRequestSchema = z.object({
   // Optional non-personal grouping key from entry URL (?c=...). Only meaningful
   // on the very first turn — createSession stores it on the session doc.
   cohortCode: z.string().max(120).nullable().optional(),
+  // Optional entry channel from ?src=... (8.8 Unreal booth). First turn only.
+  source: z.literal("8dot8").nullable().optional(),
 });
 
 async function loadScenario(scenarioId: string): Promise<Scenario | null> {
@@ -118,6 +120,7 @@ export const coachTurn = onCall(
       pendingTagIds,
       modo,
       cohortCode,
+      source,
     } = parsed.data;
 
     const sessionManager = createSessionManager();
@@ -152,6 +155,7 @@ export const coachTurn = onCall(
       mode: "coach",
       promptVersion: COACH_PROMPT_VERSION,
       cohortCode: cohortCode ?? null,
+      source: source ?? null,
     });
 
     // Owner + state gate. createSession is idempotent, so it may have returned
