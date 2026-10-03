@@ -45,8 +45,8 @@ export default function MentorChat() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col bg-warm-bg">
-      <div className="flex-1 flex flex-col max-w-2xl mx-auto w-full bg-white shadow-xl sm:my-4 sm:rounded-[2.5rem] overflow-hidden border border-stone-100">
+    <main className="h-screen h-dvh flex flex-col bg-warm-bg overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col max-w-2xl mx-auto w-full bg-white shadow-xl sm:my-4 sm:rounded-[2.5rem] overflow-hidden border border-stone-100">
       {crisisTemplate !== null && (
         <CrisisOverlay
           template={crisisTemplate}
@@ -73,7 +73,7 @@ export default function MentorChat() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4 space-y-1">
         {messages.length === 0 && (
           <div className="mt-20 mx-auto max-w-xs text-center space-y-6 px-6">
             <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-[2.5rem] bg-summer-teal/10 flex items-center justify-center mx-auto shadow-inner overflow-hidden border-2 border-summer-teal/20 group">

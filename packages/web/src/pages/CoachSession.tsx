@@ -348,7 +348,7 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
   }, [input, inputLocked, send]);
 
   return (
-    <main className="h-screen flex flex-col bg-warm-bg max-w-2xl mx-auto overflow-hidden">
+    <main className="h-screen h-dvh flex flex-col bg-warm-bg max-w-2xl mx-auto overflow-hidden">
       {!framingAcknowledged && <FramingModal onAcknowledge={acknowledgeFraming} />}
 
       {closingReason !== null && (
@@ -478,8 +478,8 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
 
       <div className="flex flex-1 min-h-0">
         {/* Chat area */}
-        <div className="flex flex-col flex-1 min-w-0">
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
+        <div className="flex flex-col flex-1 min-w-0 min-h-0">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4 space-y-1">
             <ContextBanner scenario={scenario} />
             {messages.map((m, i) => {
               const assistantAvatar =
@@ -521,7 +521,7 @@ function ActiveSession({ sessionId, scenario }: ActiveSessionProps) {
 
         {/* Emotional matrix side panel — sticky */}
         {estadoMatriz !== null && (
-          <aside className="hidden sm:flex flex-col w-52 border-l border-stone-100 bg-white px-3 py-4 space-y-3 sticky top-0 self-start max-h-screen overflow-y-auto">
+          <aside className="hidden sm:flex flex-col w-52 border-l border-stone-100 bg-white px-3 py-4 space-y-3 self-stretch overflow-y-auto">
             <p className="font-title text-[11px] uppercase tracking-wide text-stone-400">
               Estado emocional
             </p>

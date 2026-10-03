@@ -94,14 +94,18 @@ export function FramingModal({ onAcknowledge }: FramingModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-stone-900/40 flex items-stretch sm:items-center sm:justify-center sm:p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 bg-stone-900/40 overflow-y-auto overscroll-contain"
       role="dialog"
       aria-modal="true"
       aria-labelledby="framing-title"
     >
+      {/* min-h-full wrapper: centers the card when it fits and lets it scroll
+          from the top when it is taller than the viewport (centering directly
+          on the scroll container clips the top of the card). */}
+      <div className="min-h-full flex items-stretch sm:items-center sm:justify-center sm:p-4">
       <div
         ref={containerRef}
-        className="w-full sm:max-w-lg bg-warm-bg rounded-none sm:rounded-3xl shadow-md p-6 sm:p-8 my-0 sm:my-8 flex flex-col"
+        className="w-full sm:max-w-lg bg-warm-bg rounded-none sm:rounded-3xl shadow-md p-6 sm:p-8 flex flex-col"
         style={{
           paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))",
         }}
@@ -164,6 +168,7 @@ export function FramingModal({ onAcknowledge }: FramingModalProps) {
         <p className="font-secondary text-[11px] text-stone-400 leading-relaxed text-center mt-3">
           {FRAMING_COPY.fineprint}
         </p>
+      </div>
       </div>
     </div>
   );
