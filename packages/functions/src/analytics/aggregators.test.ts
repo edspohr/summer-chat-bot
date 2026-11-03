@@ -1,6 +1,15 @@
 import { describe, it, expect } from "vitest";
 import type { Timestamp } from "firebase-admin/firestore";
-import { dwellSeconds, computeDwellStats, DWELL_THRESHOLD_MINUTES } from "./aggregators.js";
+import {
+  dwellSeconds,
+  computeDwellStats,
+  DWELL_THRESHOLD_MINUTES,
+  bucketEndState,
+  emptyGroup,
+  groupKey,
+  isReportReady,
+  sessionModo,
+} from "./aggregators.js";
 
 // Minimal Timestamp stub — the aggregator only calls `.toMillis()`. Importing
 // the concrete class from firebase-admin at test time triggers admin SDK
@@ -116,5 +125,45 @@ describe("computeDwellStats — MED-01 fallback + no-start counts", () => {
     expect(stats.under5Min).toBe(1);
     expect(stats.fiveToTenMin).toBe(2);
     expect(stats.overTenMin).toBe(1);
+  });
+});
+
+describe("rollup v2 grouping helpers", () => {
+  it("groupKey separates source and modo", () => {
+    const base = { scenarioId: "scenario_03_martina", cohortCode: null, source: null, modo: "escenario" };
+    expect(groupKey(base)).toBe("scenario_03_martina::__none::__none::escenario");
+    expect(groupKey({ ...base, source: "8dot8" })).not.toBe(groupKey(base));
+    expect(groupKey({ ...base, modo: "promptPuro" })).not.toBe(groupKey(base));
+  });
+
+  it("sessionModo: Mentor → null, missing modo on Coach → escenario", () => {
+    expect(sessionModo("mentor", undefined)).toBeNull();
+    expect(sessionModo("mentor", "escenario")).toBeNull();
+    expect(sessionModo("scenario_03_martina", undefined)).toBe("escenario");
+    expect(sessionModo("scenario_03_martina", "promptPuro")).toBe("promptPuro");
+  });
+
+  it("bucketEndState counts active and drops unknown states", () => {
+    expect(bucketEndState("active")).toBe("active");
+    expect(bucketEndState("completed")).toBe("completed_legacy");
+    expect(bucketEndState(undefined)).toBe("unknown");
+    expect(bucketEndState("weird")).toBe("unknown");
+  });
+
+  it("isReportReady accepts ready and minimal only", () => {
+    expect(isReportReady("ready")).toBe(true);
+    expect(isReportReady("minimal")).toBe(true);
+    expect(isReportReady("generating")).toBe(false);
+    expect(isReportReady("failed")).toBe(false);
+    expect(isReportReady(undefined)).toBe(false);
+  });
+
+  it("emptyGroup initializes every v2 field", () => {
+    const g = emptyGroup({ scenarioId: "s", cohortCode: null, source: "8dot8", modo: "escenario" });
+    expect(g.source).toBe("8dot8");
+    expect(g.ended.active).toBe(0);
+    expect(g.matrixEligibleSessions).toBe(0);
+    expect(g.crisis.sessionsWithActivation).toBe(0);
+    expect(g.funnel).toEqual({ started: 0, threeTurnsPlus: 0, reportReady: 0, reflectionSubmitted: 0 });
   });
 });

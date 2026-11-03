@@ -12,6 +12,7 @@ import { db } from "../config/firebase.js";
 import type { RollupDocument, RollupGroup } from "@salvador/shared";
 import { SESSION_COMPLETE_AT_SECONDS } from "@salvador/shared";
 import {
+  REPORT_MIN_TURNS,
   bucketEndState,
   computeDwellStats,
   computeTurnStats,
@@ -19,8 +20,11 @@ import {
   emptyGroup,
   groupKey,
   matrixMoved,
+  isReportReady,
   median,
   santiagoDayWindow,
+  sessionModo,
+  type GroupDims,
 } from "./aggregators.js";
 
 // Firestore-shape of a session doc as seen by the rollup. Only the fields we
@@ -29,6 +33,8 @@ interface SessionDoc {
   userId?: string;
   scenarioId?: string;
   cohortCode?: string | null;
+  source?: string;
+  modo?: string;
   state?: string;
   startedAt?: Timestamp;
   lastActivityAt?: Timestamp;
@@ -44,6 +50,8 @@ interface SessionDoc {
     apertura?: number;
     confianzaEnLaAyuda?: number;
   } | null;
+  formativeReport?: { status?: string } | null;
+  reflectionSubmitted?: boolean;
 }
 
 async function loadSessionsForDay(startMs: number, endMs: number): Promise<Array<{ id: string; data: SessionDoc }>> {
@@ -137,12 +145,12 @@ export async function buildRollupForDate(dateStr: string): Promise<RollupDocumen
   const sessions = await loadSessionsForDay(startMs, endMs);
 
   const accs = new Map<string, GroupAccumulator>();
-  const getAcc = (scenarioId: string, cohortCode: string | null): GroupAccumulator => {
-    const k = groupKey(scenarioId, cohortCode);
+  const getAcc = (dims: GroupDims): GroupAccumulator => {
+    const k = groupKey(dims);
     let existing = accs.get(k);
     if (existing === undefined) {
       existing = {
-        group: emptyGroup(scenarioId, cohortCode),
+        group: emptyGroup(dims),
         devices: new Set(),
         dwellSecondsList: [],
         dwellFallbackCount: 0,
@@ -160,8 +168,14 @@ export async function buildRollupForDate(dateStr: string): Promise<RollupDocumen
   // and hit the daily quota if we ever grow past ~200 sessions/day.
   for (const { id, data } of sessions) {
     const scenarioId = data.scenarioId ?? "__unknown";
-    const cohortCode = data.cohortCode ?? null;
-    const acc = getAcc(scenarioId, cohortCode);
+    const acc = getAcc({
+      scenarioId,
+      cohortCode: data.cohortCode ?? null,
+      source: typeof data.source === "string" && data.source.length > 0 ? data.source : null,
+      modo: sessionModo(scenarioId, data.modo),
+    });
+    // emptyGroup always initializes the v2 sub-objects.
+    const funnel = acc.group.funnel!;
 
     acc.group.sessionsStarted += 1;
     if (typeof data.userId === "string" && data.userId.length > 0) {
@@ -169,12 +183,20 @@ export async function buildRollupForDate(dateStr: string): Promise<RollupDocumen
     }
 
     const endBucket = bucketEndState(data.state);
-    if (endBucket !== "active") {
-      acc.group.ended[endBucket] += 1;
+    if (endBucket !== "unknown") {
+      acc.group.ended[endBucket] = (acc.group.ended[endBucket] ?? 0) + 1;
     }
 
-    if (typeof data.turnCount === "number") acc.turnCountsList.push(data.turnCount);
+    if (typeof data.turnCount === "number") {
+      acc.turnCountsList.push(data.turnCount);
+      if (data.turnCount >= REPORT_MIN_TURNS) funnel.threeTurnsPlus += 1;
+    }
+    if (isReportReady(data.formativeReport?.status)) funnel.reportReady += 1;
+    if (data.reflectionSubmitted === true) funnel.reflectionSubmitted += 1;
 
+    if (data.estadoMatriz !== null && data.estadoMatriz !== undefined) {
+      acc.group.matrixEligibleSessions = (acc.group.matrixEligibleSessions ?? 0) + 1;
+    }
     if (matrixMoved(data.estadoMatriz ?? null)) acc.group.matrixMovedSessions += 1;
 
     // Crisis breakdown
@@ -195,6 +217,9 @@ export async function buildRollupForDate(dateStr: string): Promise<RollupDocumen
     acc.tagCountsList.push(tags);
     acc.group.tagsAwardedTotal += tags;
     acc.group.crisis.safeguardActivations += msgAgg.safeguardActivations;
+    if (msgAgg.safeguardActivations > 0) {
+      acc.group.crisis.sessionsWithActivation = (acc.group.crisis.sessionsWithActivation ?? 0) + 1;
+    }
     acc.group.nudgesSent += msgAgg.nudgesSent;
     acc.group.repliesAfterNudge += msgAgg.repliesAfterNudge;
 
@@ -207,6 +232,7 @@ export async function buildRollupForDate(dateStr: string): Promise<RollupDocumen
       typeof data.sesionIniciadaEn === "string" && data.sesionIniciadaEn.length > 0
         ? Timestamp.fromDate(new Date(data.sesionIniciadaEn))
         : null;
+    if (sesionIniciadaAt !== null) funnel.started += 1;
     const dwell = dwellSeconds({
       sesionIniciadaEn: sesionIniciadaAt,
       lastUserActivityAt: data.lastUserActivityAt ?? null,
@@ -232,24 +258,27 @@ export async function buildRollupForDate(dateStr: string): Promise<RollupDocumen
     });
     acc.group.turns = computeTurnStats(acc.turnCountsList);
     acc.group.tagsPerSessionMedian = Math.round(median(acc.tagCountsList));
+    // v2: rate over sessions that have a matrix at all (escenario mode).
+    const eligible = acc.group.matrixEligibleSessions ?? 0;
     acc.group.matrixMovementRate =
-      acc.group.sessionsStarted === 0
-        ? 0
-        : Math.round((acc.group.matrixMovedSessions / acc.group.sessionsStarted) * 100) / 100;
+      eligible === 0 ? 0 : Math.round((acc.group.matrixMovedSessions / eligible) * 100) / 100;
     groups.push(acc.group);
   }
 
-  // Stable order — cohort ASC then scenario ASC. Empty cohort comes last.
-  groups.sort((a, b) => {
-    const cohortCmp = (a.cohortCode ?? "￿").localeCompare(b.cohortCode ?? "￿");
-    if (cohortCmp !== 0) return cohortCmp;
-    return a.scenarioId.localeCompare(b.scenarioId);
-  });
+  // Stable order — cohort, scenario, source, modo ASC. Nulls come last.
+  const last = (v: string | null | undefined) => v ?? "￿";
+  groups.sort(
+    (a, b) =>
+      last(a.cohortCode).localeCompare(last(b.cohortCode)) ||
+      a.scenarioId.localeCompare(b.scenarioId) ||
+      last(a.source).localeCompare(last(b.source)) ||
+      last(a.modo).localeCompare(last(b.modo)),
+  );
 
   return {
     date: dateStr,
     generatedAtIso: new Date().toISOString(),
-    schemaVersion: 1,
+    schemaVersion: 2,
     groups,
   };
 }

@@ -11,57 +11,61 @@ export interface IndicatorCopy {
 }
 
 export const INDICATOR_COPY = {
-  sessionsStarted: {
-    title: "Sesiones iniciadas",
-    subtitle: "Sesiones que iniciaron el primer turno del aprendiz en este día.",
+  coachSessions: {
+    title: "Sesiones con Martina",
+    subtitle: "Sesiones de práctica (Coach) que comenzaron en el período. No incluye Mentor.",
   },
-  uniqueDevices: {
-    title: "Dispositivos únicos",
-    subtitle:
-      "Identificadores anónimos distintos que iniciaron al menos una sesión. Un dispositivo puede corresponder a más de una persona.",
-  },
-  completionRate: {
-    title: "Tasa de completación",
-    subtitle:
-      "Sesiones cerradas normalmente sobre el total de sesiones iniciadas. No incluye sesiones cerradas por inactividad ni por crisis.",
+  reachedFiveMin: {
+    title: "Llegaron a 5 min",
+    subtitle: "Sesiones con al menos 5 minutos entre el primer y el último turno del participante, sobre las que tuvieron al menos un turno.",
   },
   dwellMedian: {
     title: "Permanencia mediana",
-    subtitle:
-      "Tiempo entre el primer y el último turno del aprendiz. Sobre sesiones con inicio registrado.",
+    subtitle: "Tiempo entre el primer y el último turno del participante. Sobre sesiones con inicio registrado.",
+  },
+  reportsReady: {
+    title: "Informes formativos",
+    subtitle: "Sesiones con informe entregado, sobre las que tuvieron 3 o más turnos (mínimo para generar informe).",
+  },
+  crisisSessions: {
+    title: "Sesiones pausadas por crisis",
+    subtitle: "Sesiones interrumpidas por una capa de seguridad. Sobre sesiones con Martina.",
+  },
+  userEndedRate: {
+    title: "Cerradas por el participante",
+    subtitle: "Sesiones que el participante terminó con el botón de cierre, sobre las que tuvieron al menos un turno. El resto cierra por inactividad o crisis.",
+  },
+  uniqueDevices: {
+    title: "Dispositivos únicos por día",
+    subtitle: "Promedio de identificadores anónimos distintos, solo en días con actividad. Un dispositivo puede corresponder a más de una persona.",
   },
   turnsMedian: {
     title: "Turnos por sesión (mediana)",
-    subtitle:
-      "Turnos del aprendiz por sesión. Sobre sesiones con al menos un turno.",
+    subtitle: "Turnos del participante por sesión. Sobre sesiones con al menos un turno.",
   },
   tagsPerSession: {
     title: "Conductas OASIS por sesión (mediana)",
-    subtitle:
-      "Conductas OASIS reconocidas por el evaluador en cada sesión. Sobre sesiones iniciadas.",
+    subtitle: "Conductas OASIS reconocidas por el evaluador en cada sesión. Sobre sesiones iniciadas.",
   },
   matrixMovement: {
     title: "Movimiento de matriz",
-    subtitle:
-      "Sesiones donde al menos una variable emocional cambió respecto a su valor inicial.",
+    subtitle: "Sesiones donde al menos una variable emocional cambió respecto a su valor inicial. Sobre sesiones en modo escenario.",
   },
-  endStateCounts: {
-    title: "Estado final",
-    subtitle:
-      "Cómo terminó cada sesión (completada, inactividad, crisis, abandonada).",
+  mentorSessions: {
+    title: "Sesiones con el Mentor",
+    subtitle: "Consultas al Mentor (no evalúa ni hace roleplay). Se cuentan aparte de la práctica.",
   },
   safeguardActivations: {
     title: "Activaciones de seguridad",
-    subtitle:
-      "Turnos que dispararon una capa de resguardo (L1, L2 o L3). Conteo bruto.",
+    subtitle: "Turnos que dispararon una capa de resguardo (L1, L2 o L3). Conteo bruto de mensajes.",
   },
   nudgesSent: {
     title: "Recordatorios enviados",
-    subtitle: "Recordatorios enviados tras 2 minutos de inactividad del aprendiz.",
+    subtitle: "Recordatorios enviados tras 2 minutos de inactividad del participante.",
   },
   repliesAfterNudge: {
     title: "Respuestas tras recordatorio",
-    subtitle: "Turnos del aprendiz recibidos después de un recordatorio.",
+    subtitle: "Turnos del participante recibidos después de un recordatorio.",
   },
 } as const satisfies Record<string, IndicatorCopy>;
 
