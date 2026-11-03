@@ -1,6 +1,6 @@
 # Technical Debt Register
 
-_Last updated: 2026-10-03 (0031 registered — iCloud offloading node_modules)_
+_Last updated: 2026-11-03 (0032 registered — analytics rollup gaps)_
 
 | ID | Title | Severity | Status |
 |---|---|---|---|
@@ -35,6 +35,7 @@ _Last updated: 2026-10-03 (0031 registered — iCloud offloading node_modules)_
 | [0029](0029-report-wait-counts-crisis-message.md) | Report generator waits full 4s on resumed sessions — safetyLayerTriggered message inflates the delta forever | low | open |
 | [0030](0030-feedback-retry-rate-observability.md) | Feedback `schema_invalid` retry rate not observable; instrument, then evaluate `responseSchema` if >⅓ | low | open |
 | [0031](0031-icloud-offloads-node-modules.md) | iCloud offloads `node_modules` files — `tsc`, `git` and vitest hang silently; possible root cause of 0021/0025 | medium | open |
+| [0032](0032-analytics-rollup-gaps.md) | Analytics rollup: `abandoned`/`rateLimitedRejections` never written, frozen D+1 snapshots, no alert on missing day | low | open |
 
 > **Debt 0003 is the highest urgency**: Layer 3 regex patterns are the first line of defense
 > for real crisis detection. Without clinical validation, there is risk of false negatives

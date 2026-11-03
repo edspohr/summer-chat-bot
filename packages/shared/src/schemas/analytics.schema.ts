@@ -37,6 +37,9 @@ export interface EndBreakdown {
   // Legacy "completed" (pre-Phase 2). Sessions that pre-date the state
   // extension roll up here instead of closed_completed.
   completed_legacy: number;
+  // v2: sessions still in state "active" when the rollup ran (never closed —
+  // typically Mentor sessions, or a tab left open). Absent on v1 docs.
+  active?: number;
 }
 
 export interface CrisisBreakdown {
@@ -45,11 +48,33 @@ export interface CrisisBreakdown {
   crisisFlaggedReal: number;
   // crisis_interrupted state but the trainee never picked a branch.
   crisisUnbranched: number;
+  // v2: sessions with at least one safeguard activation. Same unit as
+  // sessionsStarted, unlike safeguardActivations (a raw message count).
+  sessionsWithActivation?: number;
+}
+
+// v2: participant funnel. Each step counts sessions, not events. Steps are
+// independent counters (a session can reach "report" without crossing 5 min),
+// so the UI must not assume strict nesting.
+export interface FunnelStats {
+  // Sessions with at least one trainee turn (sesionIniciadaEn set).
+  started: number;
+  // Sessions with >= 3 trainee turns — the formative report threshold.
+  threeTurnsPlus: number;
+  // Formative report in status "ready" or "minimal".
+  reportReady: number;
+  // Trainee saved the optional self-reflection.
+  reflectionSubmitted: number;
 }
 
 export interface RollupGroup {
   scenarioId: string;
   cohortCode: string | null;
+  // v2 grouping dimensions. Absent on v1 docs → treat as null.
+  // source: entry channel (?src=..., only "8dot8" today).
+  // modo: "escenario" | "promptPuro"; null for Mentor sessions.
+  source?: string | null;
+  modo?: string | null;
 
   sessionsStarted: number;
   /**
@@ -68,6 +93,10 @@ export interface RollupGroup {
   tagsPerSessionMedian: number;
 
   matrixMovedSessions: number;
+  // v2: denominator of matrixMovementRate — sessions that carry an
+  // estadoMatriz at all (excludes Mentor and promptPuro). On v1 docs the rate
+  // was computed over sessionsStarted.
+  matrixEligibleSessions?: number;
   matrixMovementRate: number; // 0..1
 
   crisis: CrisisBreakdown;
@@ -76,11 +105,15 @@ export interface RollupGroup {
   repliesAfterNudge: number;
   sessionsClosedByInactivity: number;
   rateLimitedRejections: number;
+
+  funnel?: FunnelStats;
 }
 
 export interface RollupDocument {
   date: string; // YYYY-MM-DD (Santiago tz), also the doc id
   generatedAtIso: string;
-  schemaVersion: 1;
+  // 2 adds source/modo grouping, ended.active, funnel, matrixEligibleSessions
+  // and crisis.sessionsWithActivation. Readers must tolerate both.
+  schemaVersion: 1 | 2;
   groups: RollupGroup[];
 }

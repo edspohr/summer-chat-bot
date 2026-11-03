@@ -139,7 +139,7 @@ export function matrixMoved(finalMatrix: {
 
 // ── End state breakdown ────────────────────────────────────────────────────
 
-export function bucketEndState(state: string | undefined): keyof EndBreakdown | "active" {
+export function bucketEndState(state: string | undefined): keyof EndBreakdown | "unknown" {
   switch (state) {
     case "closed_completed":
       return "closed_completed";
@@ -151,17 +151,29 @@ export function bucketEndState(state: string | undefined): keyof EndBreakdown | 
       return "abandoned";
     case "completed":
       return "completed_legacy";
-    default:
+    case "active":
       return "active";
+    default:
+      // Unknown/missing state — not counted in any end bucket.
+      return "unknown";
   }
 }
 
 // ── Group builder ──────────────────────────────────────────────────────────
 
-export function emptyGroup(scenarioId: string, cohortCode: string | null): RollupGroup {
+export interface GroupDims {
+  scenarioId: string;
+  cohortCode: string | null;
+  source: string | null;
+  modo: string | null;
+}
+
+export function emptyGroup(dims: GroupDims): RollupGroup {
   return {
-    scenarioId,
-    cohortCode,
+    scenarioId: dims.scenarioId,
+    cohortCode: dims.cohortCode,
+    source: dims.source,
+    modo: dims.modo,
     sessionsStarted: 0,
     sessionsComplete: 0,
     uniqueDevices: 0,
@@ -171,6 +183,7 @@ export function emptyGroup(scenarioId: string, cohortCode: string | null): Rollu
       crisis_interrupted: 0,
       abandoned: 0,
       completed_legacy: 0,
+      active: 0,
     },
     dwell: {
       count: 0,
@@ -185,31 +198,44 @@ export function emptyGroup(scenarioId: string, cohortCode: string | null): Rollu
     tagsAwardedTotal: 0,
     tagsPerSessionMedian: 0,
     matrixMovedSessions: 0,
+    matrixEligibleSessions: 0,
     matrixMovementRate: 0,
     crisis: {
       safeguardActivations: 0,
       crisisExercise: 0,
       crisisFlaggedReal: 0,
       crisisUnbranched: 0,
+      sessionsWithActivation: 0,
     },
     nudgesSent: 0,
     repliesAfterNudge: 0,
     sessionsClosedByInactivity: 0,
     rateLimitedRejections: 0,
+    funnel: { started: 0, threeTurnsPlus: 0, reportReady: 0, reflectionSubmitted: 0 },
   };
 }
 
-// Composite key for grouping: scenario × cohort. Empty cohort → "__none".
-export function groupKey(scenarioId: string, cohortCode: string | null): string {
-  return `${scenarioId}::${cohortCode ?? "__none"}`;
+// Composite key for grouping: scenario × cohort × source × modo. Null → "__none".
+export function groupKey(dims: GroupDims): string {
+  const n = (v: string | null) => v ?? "__none";
+  return `${dims.scenarioId}::${n(dims.cohortCode)}::${n(dims.source)}::${n(dims.modo)}`;
 }
 
-export function parseGroupKey(key: string): { scenarioId: string; cohortCode: string | null } {
-  const [scenarioId, cohortRaw] = key.split("::");
-  return {
-    scenarioId: scenarioId ?? "",
-    cohortCode: cohortRaw === "__none" ? null : cohortRaw ?? null,
-  };
+// Mentor sessions live in the same `sessions` collection with
+// scenarioId "mentor" and no `modo`. They have no matrix and no Coach
+// closing flow, so they get modo=null and are separated by the dashboard.
+export function sessionModo(scenarioId: string, modo: string | undefined | null): string | null {
+  if (scenarioId === MENTOR_SCENARIO_ID) return null;
+  return typeof modo === "string" && modo.length > 0 ? modo : "escenario";
+}
+
+export const MENTOR_SCENARIO_ID = "mentor";
+
+// Minimum trainee turns for a formative report (CLAUDE.md §13).
+export const REPORT_MIN_TURNS = 3;
+
+export function isReportReady(status: unknown): boolean {
+  return status === "ready" || status === "minimal";
 }
 
 // ── Santiago-day helpers ───────────────────────────────────────────────────
